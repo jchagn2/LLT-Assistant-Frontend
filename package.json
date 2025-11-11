@@ -9,15 +9,59 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:python"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "llt-assistant.helloWorld",
-        "title": "Hello World"
+        "command": "llt-assistant.generateTests",
+        "title": "Generate Tests"
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == python",
+          "command": "llt-assistant.generateTests",
+          "group": "1_modification"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "LLT Assistant",
+      "properties": {
+        "llt-assistant.apiProvider": {
+          "type": "string",
+          "default": "openai",
+          "enum": ["openai", "claude"],
+          "description": "LLM API provider to use"
+        },
+        "llt-assistant.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the selected provider (stored in VS Code settings)"
+        },
+        "llt-assistant.modelName": {
+          "type": "string",
+          "default": "gpt-4",
+          "description": "Model name to use (e.g., gpt-4, claude-3-opus-20240229)"
+        },
+        "llt-assistant.temperature": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Temperature for LLM generation (0-2)"
+        },
+        "llt-assistant.maxTokens": {
+          "type": "number",
+          "default": 2000,
+          "description": "Maximum tokens for LLM response"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
