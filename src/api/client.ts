@@ -26,10 +26,17 @@ export class LLMApiClient {
     messages: ChatMessage[],
     options?: LLMCallOptions
   ): Promise<LLMResponse> {
-    if (this.provider === 'openai') {
-      return this.callOpenAI(messages, options);
-    } else {
-      return this.callClaude(messages, options);
+    switch (this.provider) {
+      case 'openai':
+        return this.callOpenAI(messages, options);
+      case 'claude':
+        return this.callClaude(messages, options);
+      case 'deepseek':
+        return this.callDeepSeek(messages, options);
+      case 'openrouter':
+        return this.callOpenRouter(messages, options);
+      default:
+        throw new Error(`Unsupported API provider: ${this.provider}`);
     }
   }
 
@@ -213,6 +220,136 @@ export class LLMApiClient {
   }
 
   /**
+   * Call DeepSeek API (OpenAI-compatible)
+   * @private
+   */
+  private async callDeepSeek(
+    messages: ChatMessage[],
+    options?: LLMCallOptions
+  ): Promise<LLMResponse> {
+    const url = 'https://api.deepseek.com/v1/chat/completions';
+
+    const requestBody: any = {
+      model: this.modelName,
+      messages: messages,
+      temperature: options?.temperature ?? 0.3,
+      max_tokens: options?.maxTokens ?? 2000
+    };
+
+    // Handle JSON mode for DeepSeek (OpenAI-compatible)
+    if (options?.responseFormat === 'json_object') {
+      requestBody.response_format = { type: 'json_object' };
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error: any = new Error(`DeepSeek API error: ${response.statusText}`);
+        error.status = response.status;
+        error.statusText = response.statusText;
+        error.error = errorData;
+        throw error;
+      }
+
+      const data = await response.json() as any;
+
+      // Extract response (OpenAI-compatible format)
+      const content = data.choices?.[0]?.message?.content || '';
+      const usage = {
+        promptTokens: data.usage?.prompt_tokens || 0,
+        completionTokens: data.usage?.completion_tokens || 0,
+        totalTokens: data.usage?.total_tokens || 0
+      };
+
+      // Update cumulative usage
+      this.updateTokenUsage(usage.totalTokens, this.estimateCost('deepseek', usage));
+
+      return {
+        content,
+        model: data.model || this.modelName,
+        usage
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Call OpenRouter API (OpenAI-compatible with additional headers)
+   * @private
+   */
+  private async callOpenRouter(
+    messages: ChatMessage[],
+    options?: LLMCallOptions
+  ): Promise<LLMResponse> {
+    const url = 'https://openrouter.ai/api/v1/chat/completions';
+
+    const requestBody: any = {
+      model: this.modelName,
+      messages: messages,
+      temperature: options?.temperature ?? 0.3,
+      max_tokens: options?.maxTokens ?? 2000
+    };
+
+    // Handle JSON mode for OpenRouter (OpenAI-compatible)
+    if (options?.responseFormat === 'json_object') {
+      requestBody.response_format = { type: 'json_object' };
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'HTTP-Referer': 'https://github.com/Efan404/LLT-Assistant-VScode', // Optional but recommended
+          'X-Title': 'LLT-Assistant VSCode Extension' // Optional but recommended
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error: any = new Error(`OpenRouter API error: ${response.statusText}`);
+        error.status = response.status;
+        error.statusText = response.statusText;
+        error.error = errorData;
+        throw error;
+      }
+
+      const data = await response.json() as any;
+
+      // Extract response (OpenAI-compatible format)
+      const content = data.choices?.[0]?.message?.content || '';
+      const usage = {
+        promptTokens: data.usage?.prompt_tokens || 0,
+        completionTokens: data.usage?.completion_tokens || 0,
+        totalTokens: data.usage?.total_tokens || 0
+      };
+
+      // Update cumulative usage
+      this.updateTokenUsage(usage.totalTokens, this.estimateCost('openrouter', usage));
+
+      return {
+        content,
+        model: data.model || this.modelName,
+        usage
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
    * Update cumulative token usage
    * @private
    */
@@ -226,22 +363,44 @@ export class LLMApiClient {
    * @private
    */
   private estimateCost(provider: ApiProvider, usage: { promptTokens: number; completionTokens: number }): number {
-    // Rough estimates (prices as of 2024, per 1M tokens)
+    // Rough estimates (prices as of 2024-2025, per 1M tokens)
     const pricing: Record<string, { input: number; output: number }> = {
+      // OpenAI models
       'gpt-4': { input: 30, output: 60 },
       'gpt-4-turbo': { input: 10, output: 30 },
       'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
+
+      // Claude models
       'claude-3-opus': { input: 15, output: 75 },
       'claude-3-sonnet': { input: 3, output: 15 },
-      'claude-3-haiku': { input: 0.25, output: 1.25 }
+      'claude-3-haiku': { input: 0.25, output: 1.25 },
+
+      // DeepSeek models (very cost-effective)
+      'deepseek-chat': { input: 0.14, output: 0.28 },
+      'deepseek-coder': { input: 0.14, output: 0.28 },
+      'deepseek': { input: 0.14, output: 0.28 }, // Default for DeepSeek
+
+      // OpenRouter (varies by model, using average estimate)
+      // OpenRouter pricing depends on the specific model being routed to
+      'openrouter': { input: 5, output: 15 } // Average estimate
     };
 
     // Find matching pricing (rough match by model name prefix)
     let rates = { input: 10, output: 30 }; // Default rates
-    for (const [model, price] of Object.entries(pricing)) {
-      if (this.modelName.toLowerCase().includes(model.toLowerCase())) {
-        rates = price;
-        break;
+
+    // First try to match by provider for default rates
+    if (provider === 'deepseek' && !this.modelName.toLowerCase().includes('deepseek')) {
+      rates = pricing['deepseek'];
+    } else if (provider === 'openrouter') {
+      // For OpenRouter, try to extract the actual model name or use default
+      rates = pricing['openrouter'];
+    } else {
+      // Try to match by model name
+      for (const [model, price] of Object.entries(pricing)) {
+        if (this.modelName.toLowerCase().includes(model.toLowerCase())) {
+          rates = price;
+          break;
+        }
       }
     }
 

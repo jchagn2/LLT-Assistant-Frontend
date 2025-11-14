@@ -35,7 +35,7 @@
         "llt-assistant.apiProvider": {
           "type": "string",
           "default": "openai",
-          "enum": ["openai", "claude"],
+          "enum": ["openai", "claude", "deepseek", "openrouter"],
           "description": "LLM API provider to use"
         },
         "llt-assistant.apiKey": {

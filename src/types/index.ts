@@ -5,7 +5,7 @@
 /**
  * Supported LLM API providers
  */
-export type ApiProvider = 'openai' | 'claude';
+export type ApiProvider = 'openai' | 'claude' | 'deepseek' | 'openrouter';
 
 /**
  * Chat message structure for LLM API calls
