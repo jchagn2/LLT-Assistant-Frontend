@@ -17,7 +17,9 @@ import {
 	QualityTreeProvider,
 	AnalyzeQualityCommand,
 	QualityStatusBarManager,
-	QualityConfigManager
+	QualityConfigManager,
+	IssueDecorator,
+	QualitySuggestionProvider
 } from './quality';
 
 /**
@@ -42,6 +44,8 @@ export function activate(context: vscode.ExtensionContext) {
 	const qualityBackendClient = new QualityBackendClient();
 	const qualityTreeProvider = new QualityTreeProvider();
 	const qualityStatusBar = new QualityStatusBarManager();
+	const issueDecorator = new IssueDecorator();
+	const suggestionProvider = new QualitySuggestionProvider();
 	const analyzeCommand = new AnalyzeQualityCommand(qualityBackendClient, qualityTreeProvider);
 
 	// Register tree view for quality analysis
@@ -50,6 +54,34 @@ export function activate(context: vscode.ExtensionContext) {
 		showCollapseAll: true
 	});
 	context.subscriptions.push(treeView);
+
+	// Register code action provider for Python test files
+	const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+		{ language: 'python', pattern: '**/test_*.py' },
+		suggestionProvider,
+		{
+			providedCodeActionKinds: QualitySuggestionProvider.providedCodeActionKinds
+		}
+	);
+	context.subscriptions.push(codeActionProvider);
+
+	// Update decorations when active editor changes
+	const editorChangeListener = vscode.window.onDidChangeActiveTextEditor(editor => {
+		if (editor && QualityConfigManager.getEnableInlineDecorations()) {
+			issueDecorator.updateEditorDecorations(editor);
+		}
+	});
+	context.subscriptions.push(editorChangeListener);
+
+	// Update decorations when visible editors change
+	const visibleEditorsListener = vscode.window.onDidChangeVisibleTextEditors(editors => {
+		if (QualityConfigManager.getEnableInlineDecorations()) {
+			editors.forEach(editor => {
+				issueDecorator.updateEditorDecorations(editor);
+			});
+		}
+	});
+	context.subscriptions.push(visibleEditorsListener);
 
 	// Register quality analysis commands
 	const analyzeQualityCommand = vscode.commands.registerCommand(
@@ -61,6 +93,14 @@ export function activate(context: vscode.ExtensionContext) {
 			if (result) {
 				const criticalCount = result.metrics.severity_breakdown?.error || 0;
 				qualityStatusBar.showResults(result.issues.length, criticalCount);
+
+				// Update decorations and suggestions
+				if (QualityConfigManager.getEnableInlineDecorations()) {
+					issueDecorator.updateIssues(result.issues);
+				}
+				if (QualityConfigManager.getEnableCodeActions()) {
+					suggestionProvider.updateIssues(result.issues);
+				}
 			} else {
 				qualityStatusBar.showIdle();
 			}
@@ -76,6 +116,14 @@ export function activate(context: vscode.ExtensionContext) {
 			if (result) {
 				const criticalCount = result.metrics.severity_breakdown?.error || 0;
 				qualityStatusBar.showResults(result.issues.length, criticalCount);
+
+				// Update decorations and suggestions
+				if (QualityConfigManager.getEnableInlineDecorations()) {
+					issueDecorator.updateIssues(result.issues);
+				}
+				if (QualityConfigManager.getEnableCodeActions()) {
+					suggestionProvider.updateIssues(result.issues);
+				}
 			} else {
 				qualityStatusBar.showIdle();
 			}
@@ -86,6 +134,8 @@ export function activate(context: vscode.ExtensionContext) {
 		'llt-assistant.clearQualityIssues',
 		() => {
 			qualityTreeProvider.clear();
+			issueDecorator.clear();
+			suggestionProvider.clear();
 			qualityStatusBar.showIdle();
 			vscode.window.showInformationMessage('Quality issues cleared');
 		}
@@ -117,7 +167,8 @@ export function activate(context: vscode.ExtensionContext) {
 		refreshQualityViewCommand,
 		clearQualityIssuesCommand,
 		showIssueCommand,
-		qualityStatusBar
+		qualityStatusBar,
+		issueDecorator
 	);
 
 	// Watch for configuration changes

@@ -6,4 +6,5 @@
 export * from './api';
 export * from './activityBar';
 export * from './commands';
+export * from './decorations';
 export * from './utils';
