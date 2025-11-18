@@ -68,14 +68,21 @@ export interface ConfirmationResult {
 }
 
 /**
+ * API mode for the plugin
+ */
+export type ApiMode = 'direct' | 'backend';
+
+/**
  * Configuration for the plugin
  */
 export interface PluginConfiguration {
+  apiMode: ApiMode;
   apiProvider: ApiProvider;
   apiKey: string;
   modelName: string;
   temperature: number;
   maxTokens: number;
+  backendUrl: string;
 }
 
 /**

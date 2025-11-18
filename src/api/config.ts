@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ApiProvider, PluginConfiguration } from '../types';
+import { ApiProvider, ApiMode, PluginConfiguration } from '../types';
 
 /**
  * Manages plugin configuration including API keys and provider settings
@@ -15,11 +15,13 @@ export class ConfigurationManager {
     const config = vscode.workspace.getConfiguration(this.configSection);
 
     return {
+      apiMode: config.get<ApiMode>('apiMode', 'backend'),
       apiProvider: config.get<ApiProvider>('apiProvider', 'openai'),
       apiKey: config.get<string>('apiKey', ''),
       modelName: config.get<string>('modelName', 'gpt-4'),
       temperature: config.get<number>('temperature', 0.3),
-      maxTokens: config.get<number>('maxTokens', 2000)
+      maxTokens: config.get<number>('maxTokens', 2000),
+      backendUrl: config.get<string>('backendUrl', 'https://llt-assistant.fly.dev/api/v1')
     };
   }
 
@@ -96,6 +98,22 @@ export class ConfigurationManager {
    */
   public getMaxTokens(): number {
     return this.getConfiguration().maxTokens;
+  }
+
+  /**
+   * Get the configured API mode
+   * @returns API mode ('direct' or 'backend')
+   */
+  public getApiMode(): ApiMode {
+    return this.getConfiguration().apiMode;
+  }
+
+  /**
+   * Get the configured backend URL
+   * @returns Backend API URL
+   */
+  public getBackendUrl(): string {
+    return this.getConfiguration().backendUrl;
   }
 
   /**

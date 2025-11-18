@@ -95,6 +95,24 @@
     "configuration": {
       "title": "LLT Assistant",
       "properties": {
+        "llt-assistant.apiMode": {
+          "type": "string",
+          "default": "backend",
+          "enum": [
+            "backend",
+            "direct"
+          ],
+          "enumDescriptions": [
+            "Use LLT Assistant Backend API (recommended, no API key needed)",
+            "Direct LLM API calls (requires API key)"
+          ],
+          "description": "API mode: use backend or direct LLM API calls"
+        },
+        "llt-assistant.backendUrl": {
+          "type": "string",
+          "default": "https://llt-assistant.fly.dev/api/v1",
+          "description": "Backend API URL (only used in backend mode)"
+        },
         "llt-assistant.apiProvider": {
           "type": "string",
           "default": "openai",
@@ -104,29 +122,29 @@
             "deepseek",
             "openrouter"
           ],
-          "description": "LLM API provider to use"
+          "description": "LLM API provider to use (only used in direct mode)"
         },
         "llt-assistant.apiKey": {
           "type": "string",
           "default": "",
-          "description": "API key for the selected provider (stored in VS Code settings)"
+          "description": "API key for the selected provider (only used in direct mode)"
         },
         "llt-assistant.modelName": {
           "type": "string",
           "default": "gpt-4",
-          "description": "Model name to use (e.g., gpt-4, claude-3-opus-20240229)"
+          "description": "Model name to use (only used in direct mode, e.g., gpt-4, claude-3-opus-20240229)"
         },
         "llt-assistant.temperature": {
           "type": "number",
           "default": 0.3,
           "minimum": 0,
           "maximum": 2,
-          "description": "Temperature for LLM generation (0-2)"
+          "description": "Temperature for LLM generation (only used in direct mode, 0-2)"
         },
         "llt-assistant.maxTokens": {
           "type": "number",
           "default": 2000,
-          "description": "Maximum tokens for LLM response"
+          "description": "Maximum tokens for LLM response (only used in direct mode)"
         },
         "llt-assistant.quality.backendUrl": {
           "type": "string",

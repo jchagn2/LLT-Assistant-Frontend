@@ -23,3 +23,6 @@ export { InputValidator } from './input-validator';
 
 // Export flow controller
 export { AgentFlowController } from './agent-controller';
+
+// Export backend flow controller
+export { BackendAgentController } from './backend-controller';
