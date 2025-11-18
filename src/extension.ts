@@ -9,7 +9,7 @@ import { ConfigurationManager, LLMApiClient, ApiErrorHandler } from './api';
 import { UIDialogs } from './ui';
 import { CodeAnalyzer } from './utils';
 import { PythonASTAnalyzer } from './analysis';
-import { AgentFlowController, Stage1Response, UserConfirmationResult } from './agents';
+import { AgentFlowController, BackendAgentController, Stage1Response, UserConfirmationResult } from './agents';
 import { TestGenerationController } from './generation';
 
 /**
@@ -91,21 +91,31 @@ function registerGenerateTestsCommand(context: vscode.ExtensionContext): vscode.
 				return;
 			}
 
-			// Get API key (will prompt if not set)
-			let apiKey: string;
-			try {
-				apiKey = await configManager.getApiKey();
-			} catch (error) {
-				// User cancelled API key input
-				return;
-			}
-
 			// Initialize controllers
-			const provider = configManager.getApiProvider();
-			const modelName = configManager.getModelName();
-			const agentController = new AgentFlowController(apiKey, provider, modelName);
+			const apiMode = configManager.getApiMode();
 			const testGenerator = new TestGenerationController();
 			const astAnalyzer = new PythonASTAnalyzer();
+
+			// Choose controller based on API mode
+			let agentController: AgentFlowController | BackendAgentController;
+			if (apiMode === 'backend') {
+				// Backend mode - no API key needed
+				const backendUrl = configManager.getBackendUrl();
+				agentController = new BackendAgentController(backendUrl);
+			} else {
+				// Direct LLM mode - API key required
+				let apiKey: string;
+				try {
+					apiKey = await configManager.getApiKey();
+				} catch (error) {
+					// User cancelled API key input
+					return;
+				}
+
+				const provider = configManager.getApiProvider();
+				const modelName = configManager.getModelName();
+				agentController = new AgentFlowController(apiKey, provider, modelName);
+			}
 
 			await UIDialogs.withIncrementalProgress('Generating tests...', async (updateProgress) => {
 				try {
