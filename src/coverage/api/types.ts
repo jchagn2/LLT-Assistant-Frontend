@@ -104,3 +104,49 @@ export interface CoverageBackendError {
 	detail: string;
 	statusCode?: number;
 }
+
+/**
+ * Uncovered range information (lines or branches)
+ */
+export interface UncoveredRange {
+	start_line: number;
+	end_line: number;
+	type: 'line' | 'branch';
+}
+
+/**
+ * Coverage optimization request
+ */
+export interface CoverageOptimizationRequest {
+	source_code: string;
+	existing_test_code: string;
+	uncovered_ranges: UncoveredRange[];
+	framework: string;
+}
+
+/**
+ * Recommended test from optimization result
+ */
+export interface RecommendedTest {
+	test_code: string;
+	target_line: number;
+	scenario_description: string;
+	expected_coverage_impact: string;
+}
+
+/**
+ * Coverage optimization result
+ */
+export interface CoverageOptimizationResult {
+	recommended_tests: RecommendedTest[];
+}
+
+/**
+ * Task status response for async operations
+ */
+export interface TaskStatusResponse {
+	task_id: string;
+	status: 'pending' | 'processing' | 'completed' | 'failed';
+	estimated_time_seconds?: number;
+	result?: CoverageOptimizationResult;
+}
