@@ -10,6 +10,20 @@ import {
 	TaskStatusResponse
 } from './types';
 
+export class CoverageError extends Error implements CoverageBackendError {
+	type: 'network' | 'validation' | 'server' | 'timeout' | 'unknown';
+	detail: string;
+	statusCode?: number;
+
+	constructor(error: CoverageBackendError) {
+		super(error.message);
+		this.name = 'CoverageError';
+		this.type = error.type;
+		this.detail = error.detail;
+		this.statusCode = error.statusCode;
+	}
+}
+
 const DEFAULTS = {
 	BACKEND_URL: 'https://cs5351.efan.dev/api/v1',
 	TIMEOUT_MS: 60000, // 60 seconds for test generation (longer than quality analysis)
@@ -137,7 +151,7 @@ export class CoverageBackendClient {
 		} catch (error) {
 			// Convert to CoverageBackendError for consistent error handling
 			const backendError = this.handleApiError(error);
-			throw backendError;
+			throw new CoverageError(backendError);
 		}
 	}
 
@@ -159,12 +173,12 @@ export class CoverageBackendClient {
 			// Check timeout
 			const elapsed = Date.now() - startTime;
 			if (elapsed > DEFAULTS.MAX_POLL_TIMEOUT_MS) {
-				throw {
+				throw new CoverageError({
 					type: 'timeout',
 					message: 'Task polling timeout',
 					detail: `Task ${taskId} did not complete within ${DEFAULTS.MAX_POLL_TIMEOUT_MS}ms`,
 					statusCode: 0
-				} as CoverageBackendError;
+				});
 			}
 
 			// Poll status
@@ -182,12 +196,12 @@ export class CoverageBackendClient {
 
 			// Check if task failed
 			if (status.status === 'failed') {
-				throw {
+				throw new CoverageError({
 					type: 'server',
 					message: 'Task failed',
 					detail: `Task ${taskId} failed during processing`,
 					statusCode: 0
-				} as CoverageBackendError;
+				});
 			}
 
 			// Wait before next poll with exponential backoff
