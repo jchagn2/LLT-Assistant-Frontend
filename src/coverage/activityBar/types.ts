@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { CoverageFileData, UncoveredFunction, PartiallyCoveredFunction } from '../api/types';
+import { CoverageFileData, UncoveredFunction, PartiallyCoveredFunction, UncoveredRange } from '../api/types';
 
 /**
  * Tree item type for coverage view
@@ -14,6 +14,7 @@ export enum CoverageTreeItemType {
 	UncoveredFunction = 'uncovered-function',
 	PartiallyCoveredFunction = 'partially-covered-function',
 	Branch = 'branch',
+	UncoveredLines = 'uncovered-lines',
 	Empty = 'empty'
 }
 
@@ -52,6 +53,9 @@ export interface CoverageTreeItemData {
 		type: string;
 		description: string;
 	};
+
+	// For uncovered lines/branches
+	uncoveredRanges?: UncoveredRange[];
 }
 
 /**
