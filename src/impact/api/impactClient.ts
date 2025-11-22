@@ -91,7 +91,7 @@ export class ImpactAnalysisClient {
 
 			// Make API call
 			const response = await this.axiosInstance.post<DetectCodeChangesResponse>(
-				'/api/v1/workflows/detect-code-changes',
+				'/workflows/detect-code-changes',
 				request
 			);
 

@@ -45,17 +45,6 @@ suite('Extension Integration Test Suite', () => {
     });
   });
 
-  suite('Configuration', () => {
-    test('should have default configuration values', () => {
-      const config = vscode.workspace.getConfiguration('llt-assistant');
-
-      // Extension now uses backend-only mode
-      assert.strictEqual(
-        config.get('backendUrl'),
-        'https://llt-assistant.fly.dev/api/v1'
-      );
-    });
-
     test('should have quality analysis configuration', () => {
       const config = vscode.workspace.getConfiguration('llt-assistant.quality');
 

@@ -78,7 +78,7 @@ export class QualityBackendClient {
 		for (let attempt = 0; attempt < maxRetries; attempt++) {
 			try {
 				const response = await this.client.post<AnalyzeQualityResponse>(
-					'/api/v1/workflows/analyze-quality',
+					'/workflows/analyze-quality',
 					request
 				);
 

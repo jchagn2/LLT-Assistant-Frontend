@@ -105,7 +105,7 @@ export class CoverageBackendClient {
 		for (let attempt = 0; attempt < maxRetries; attempt++) {
 			try {
 				const response = await this.client.post<TaskStatusResponse>(
-					'/api/v1/optimization/coverage',
+					'/optimization/coverage',
 					request
 				);
 
@@ -148,7 +148,7 @@ export class CoverageBackendClient {
 	 */
 	async pollTaskStatus(taskId: string): Promise<TaskStatusResponse> {
 		try {
-			const response = await this.client.get<TaskStatusResponse>(`/api/v1/tasks/${taskId}`);
+			const response = await this.client.get<TaskStatusResponse>(`/tasks/${taskId}`);
 			return response.data;
 		} catch (error) {
 			// Convert to CoverageBackendError for consistent error handling

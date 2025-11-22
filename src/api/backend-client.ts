@@ -109,7 +109,7 @@ export class BackendApiClient {
 
   constructor(baseUrl?: string) {
     // Default to production server, can be overridden with config
-    this.baseUrl = baseUrl || 'https://cs5351.efan.dev/api/v1';
+    this.baseUrl = baseUrl || 'https://cs5351.efan.dev';
   }
 
   /**
