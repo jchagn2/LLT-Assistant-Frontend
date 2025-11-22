@@ -34,20 +34,20 @@ export class CoverageXmlParser {
 	/**
 	 * Parse a coverage.xml file
 	 */
-	async parse(xmlPath: string): Promise<CoverageReport> {
+	async parse(xmlPath: string, workspaceRoot?: string): Promise<CoverageReport> {
 		const xmlContent = await fs.promises.readFile(xmlPath, 'utf-8');
-		return this.parseXmlContent(xmlContent, xmlPath);
+		return this.parseXmlContent(xmlContent, xmlPath, workspaceRoot);
 	}
 
 	/**
 	 * Parse XML content string
 	 */
-	parseXmlContent(xmlContent: string, reportPath?: string): CoverageReport {
+	parseXmlContent(xmlContent: string, reportPath?: string, workspaceRoot?: string): CoverageReport {
 		// Extract overall statistics from root coverage element
 		const overallStats = this.extractOverallStats(xmlContent);
 
 		// Extract file-level coverage data
-		const files = this.extractFileCoverage(xmlContent);
+		const files = this.extractFileCoverage(xmlContent, reportPath, workspaceRoot);
 
 		return {
 			overallStats,
@@ -103,7 +103,7 @@ export class CoverageXmlParser {
 	/**
 	 * Extract coverage data for all files
 	 */
-	private extractFileCoverage(xmlContent: string): CoverageFileData[] {
+	private extractFileCoverage(xmlContent: string, reportPath?: string, workspaceRoot?: string): CoverageFileData[] {
 		const files: CoverageFileData[] = [];
 
 		// Match all <class> elements (each represents a Python file)
@@ -111,10 +111,13 @@ export class CoverageXmlParser {
 
 		let match;
 		while ((match = classRegex.exec(xmlContent)) !== null) {
-			const filePath = match[1];
+			const rawFilePath = match[1];
 			const lineCoverage = parseFloat(match[2]);
 			const branchCoverage = parseFloat(match[3]);
 			const classContent = match[4];
+
+			// Resolve file path to absolute path
+			const filePath = this.resolveFilePath(rawFilePath, reportPath, workspaceRoot);
 
 			// Extract line information
 			const lineData = this.extractLineData(classContent);
@@ -136,6 +139,55 @@ export class CoverageXmlParser {
 		}
 
 		return files;
+	}
+
+	/**
+	 * Resolve file path from coverage.xml to absolute path
+	 * Handles relative paths relative to coverage.xml location or workspace root
+	 */
+	private resolveFilePath(rawPath: string, reportPath?: string, workspaceRoot?: string): string {
+		// If already absolute path, return as is
+		if (path.isAbsolute(rawPath)) {
+			return rawPath;
+		}
+
+		// Try resolving relative to coverage.xml location first
+		if (reportPath) {
+			const reportDir = path.dirname(reportPath);
+			const resolvedFromReport = path.resolve(reportDir, rawPath);
+			
+			// Check if file exists at this location
+			try {
+				if (fs.existsSync(resolvedFromReport)) {
+					return resolvedFromReport;
+				}
+			} catch {
+				// Continue to next resolution attempt
+			}
+		}
+
+		// Try resolving relative to workspace root
+		if (workspaceRoot) {
+			const resolvedFromWorkspace = path.resolve(workspaceRoot, rawPath);
+			
+			// Check if file exists at this location
+			try {
+				if (fs.existsSync(resolvedFromWorkspace)) {
+					return resolvedFromWorkspace;
+				}
+			} catch {
+				// Continue to next resolution attempt
+			}
+		}
+
+		// If workspace root is provided but file not found, still return resolved path
+		// (file might be in a different location or not exist yet)
+		if (workspaceRoot) {
+			return path.resolve(workspaceRoot, rawPath);
+		}
+
+		// Fallback: return as-is (might be handled elsewhere)
+		return rawPath;
 	}
 
 	/**

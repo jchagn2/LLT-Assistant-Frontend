@@ -77,8 +77,8 @@ export class CoverageCommands {
 
 					progress.report({ message: 'Parsing coverage report...' });
 
-					// Parse coverage file
-					const coverageReport = await this.parser.parse(coverageFilePath);
+					// Parse coverage file with workspace root for path resolution
+					const coverageReport = await this.parser.parse(coverageFilePath, workspaceRoot);
 
 					// Update tree view
 					this.treeProvider.updateCoverageReport(coverageReport);
@@ -244,15 +244,44 @@ export class CoverageCommands {
 	 * Go to a specific line in a file
 	 */
 	async goToLine(filePath: string, line: number): Promise<void> {
-		const document = await vscode.workspace.openTextDocument(filePath);
-		const editor = await vscode.window.showTextDocument(document);
+		try {
+			// Try to open the document
+			let document: vscode.TextDocument;
+			try {
+				document = await vscode.workspace.openTextDocument(filePath);
+			} catch (error) {
+				// If file not found, try to resolve path relative to workspace
+				const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+				if (workspaceFolder) {
+					const workspaceRoot = workspaceFolder.uri.fsPath;
+					const resolvedPath = path.isAbsolute(filePath)
+						? filePath
+						: path.resolve(workspaceRoot, filePath);
+					
+					try {
+						document = await vscode.workspace.openTextDocument(resolvedPath);
+					} catch {
+						throw new Error(`File not found: ${filePath}. Tried: ${resolvedPath}`);
+					}
+				} else {
+					throw error;
+				}
+			}
 
-		const position = new vscode.Position(line - 1, 0);
-		editor.selection = new vscode.Selection(position, position);
-		editor.revealRange(
-			new vscode.Range(position, position),
-			vscode.TextEditorRevealType.InCenter
-		);
+			const editor = await vscode.window.showTextDocument(document);
+
+			const position = new vscode.Position(line - 1, 0);
+			editor.selection = new vscode.Selection(position, position);
+			editor.revealRange(
+				new vscode.Range(position, position),
+				vscode.TextEditorRevealType.InCenter
+			);
+		} catch (error: any) {
+			vscode.window.showErrorMessage(
+				`Cannot open file: ${filePath}. ${error.message || error}`
+			);
+			console.error('[LLT Coverage] Error opening file:', error);
+		}
 	}
 
 	/**
@@ -356,7 +385,7 @@ export class CoverageCommands {
 		recommendedTests: RecommendedTest[]
 	): Promise<void> {
 		// Import InlinePreviewManager
-		const { InlinePreviewManager } = await import('../preview');
+		const { InlinePreviewManager } = await import('../preview/index.js');
 
 		// Create or get preview manager instance
 		// Note: In a real implementation, this should be managed at the class level
