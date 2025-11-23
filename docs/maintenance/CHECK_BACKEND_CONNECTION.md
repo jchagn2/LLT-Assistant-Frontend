@@ -7,7 +7,6 @@
 1. **`.vscode/settings.json`**:
    ```json
    {
-     "llt-assistant.maintenance.useMockMode": false,
      "llt-assistant.maintenance.backendUrl": "https://cs5351.efan.dev/api/v1",
      "llt-assistant.backendUrl": "https://cs5351.efan.dev"
    }
@@ -87,11 +86,6 @@
     "default": "https://cs5351.efan.dev/api/v1",
     "description": "Backend API URL for dynamic maintenance operations"
   },
-  "llt-assistant.maintenance.useMockMode": {
-    "type": "boolean",
-    "default": false,
-    "description": "Use mock backend client for testing (frontend only)"
-  },
   "llt-assistant.maintenance.autoAnalyze": {
     "type": "boolean",
     "default": false,
@@ -120,9 +114,7 @@ import {
 import { MockMaintenanceBackendClient } from './maintenance/api/mockClient';
 
 // 在 activate 函数中注册
-const maintenanceClient = useMockMode
-  ? (new MockMaintenanceBackendClient() as any)
-  : new MaintenanceBackendClient();
+const maintenanceClient = new MaintenanceBackendClient();
 const maintenanceTreeProvider = new MaintenanceTreeProvider();
 const decisionDialog = new DecisionDialogManager();
 

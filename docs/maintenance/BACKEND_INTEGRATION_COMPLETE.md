@@ -217,9 +217,8 @@ outputChannel.show();
 - ✅ 自动添加 `/api/v1` 后缀
 - ✅ 配置变更时自动更新
 
-### Mock模式
+### 后端连接
 
-- ✅ 已关闭（`useMockMode: false`）
 - ✅ 使用真实后端API
 - ✅ 后端URL：`https://cs5351.efan.dev/api/v1`
 

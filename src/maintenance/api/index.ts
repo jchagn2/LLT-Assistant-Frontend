@@ -5,5 +5,4 @@
 
 export * from './types';
 export * from './maintenanceClient';
-export * from './mockClient';
 

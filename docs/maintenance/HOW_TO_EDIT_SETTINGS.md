@@ -20,7 +20,7 @@
    - 在文件中添加：
    ```json
    {
-     "llt-assistant.maintenance.useMockMode": true
+     "llt-assistant.maintenance.backendUrl": "https://cs5351.efan.dev/api/v1"
    }
    ```
 
@@ -67,7 +67,7 @@
    - 或点击菜单：`文件` → `首选项` → `设置`
 
 2. **搜索配置项**
-   - 在搜索框输入：`llt-assistant.maintenance.useMockMode`
+   - 在搜索框输入：`llt-assistant.maintenance.backendUrl`
 
 3. **启用配置**
    - 找到配置项
@@ -98,7 +98,7 @@
 3. **添加内容**
    ```json
    {
-     "llt-assistant.maintenance.useMockMode": true
+     "llt-assistant.maintenance.backendUrl": "https://cs5351.efan.dev/api/v1"
    }
    ```
 

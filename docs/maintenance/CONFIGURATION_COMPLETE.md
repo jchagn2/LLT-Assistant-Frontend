@@ -9,13 +9,13 @@
 - ✅ 视图 `lltMaintenanceExplorer`
 - ✅ 4个维护命令
 - ✅ 视图菜单项
-- ✅ 4个配置项（backendUrl, useMockMode, autoAnalyze, watchCommits）
+- ✅ 3个配置项（backendUrl, autoAnalyze, watchCommits）
 
 ### 2. extension.ts 注册
 
 已添加：
 - ✅ 维护模块导入
-- ✅ 维护客户端初始化（支持Mock模式）
+- ✅ 维护客户端初始化
 - ✅ 树形视图注册
 - ✅ 4个命令处理器注册
 - ✅ 配置变更监听
@@ -115,11 +115,9 @@
 
 ## 📝 注意事项
 
-1. **Mock模式**: 可以通过 `llt-assistant.maintenance.useMockMode` 配置项启用，用于前端测试
+1. **健康检查**: 如果后端没有实现 `/health` 端点，会显示警告但允许继续执行
 
-2. **健康检查**: 如果后端没有实现 `/health` 端点，会显示警告但允许继续执行
-
-3. **测试重新生成**: 现在使用新的异步工作流，每个测试会显示diff预览，需要用户确认
+2. **测试重新生成**: 现在使用新的异步工作流，每个测试会显示diff预览，需要用户确认
 
 ---
 

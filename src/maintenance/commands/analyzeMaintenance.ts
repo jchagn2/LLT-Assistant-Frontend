@@ -218,30 +218,16 @@ export class AnalyzeMaintenanceCommand {
 							
 							const action = await vscode.window.showErrorMessage(
 								`Maintenance Analysis Failed: Backend API endpoint not found (404)\n\n` +
-								`The endpoint /maintenance/analyze may not be implemented yet.\n\n` +
+								`The endpoint /maintenance/analyze is not implemented or not available.\n\n` +
 								`Expected: POST ${backendUrl}/maintenance/analyze\n\n` +
-								`Options:\n` +
-								`• Use Mock Mode for frontend testing (recommended)\n` +
-								`• Check with backend team if endpoint is available\n` +
-								`• Verify backend URL in settings`,
-								'Use Mock Mode',
+								`Please check with the backend team if the endpoint is available.`,
 								'Open Settings',
 								'View Logs',
 								'Cancel'
 							);
 							
-							if (action === 'Use Mock Mode') {
-								await config.update('maintenance.useMockMode', true, vscode.ConfigurationTarget.Workspace);
-								vscode.window.showInformationMessage(
-									'Mock mode enabled. Please reload the window (Ctrl+R or Cmd+R) and try again.',
-									'Reload Now'
-								).then(selection => {
-									if (selection === 'Reload Now') {
-										vscode.commands.executeCommand('workbench.action.reloadWindow');
-									}
-								});
-							} else if (action === 'Open Settings') {
-								vscode.commands.executeCommand('workbench.action.openSettings', 'llt-assistant.maintenance');
+							if (action === 'Open Settings') {
+								vscode.commands.executeCommand('workbench.action.openSettings', 'llt-assistant.maintenance.backendUrl');
 							} else if (action === 'View Logs') {
 								const outputChannel = vscode.window.createOutputChannel('LLT Maintenance');
 								outputChannel.appendLine('='.repeat(60));
@@ -259,11 +245,7 @@ export class AnalyzeMaintenanceCommand {
 								outputChannel.appendLine('3. The backend server is not running');
 								outputChannel.appendLine('4. Network connectivity issues');
 								outputChannel.appendLine('');
-								outputChannel.appendLine('Solution:');
-								outputChannel.appendLine('Enable Mock Mode in settings for frontend testing:');
-								outputChannel.appendLine('  "llt-assistant.maintenance.useMockMode": true');
-								outputChannel.appendLine('');
-								outputChannel.appendLine('Or verify the backend endpoint is available at:');
+								outputChannel.appendLine('Please verify the backend endpoint is available at:');
 								outputChannel.appendLine(`  ${backendUrl}/maintenance/analyze`);
 								outputChannel.show();
 							}

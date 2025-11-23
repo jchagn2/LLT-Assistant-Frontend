@@ -367,11 +367,6 @@
           "default": "https://cs5351.efan.dev/api/v1",
           "description": "Backend API URL for dynamic maintenance operations"
         },
-        "llt-assistant.maintenance.useMockMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "Use mock backend client for testing (frontend only)"
-        },
         "llt-assistant.maintenance.autoAnalyze": {
           "type": "boolean",
           "default": false,

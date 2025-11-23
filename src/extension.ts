@@ -46,7 +46,6 @@ import {
 	BatchFixCommand,
 	DecisionDialogManager
 } from './maintenance';
-import { MockMaintenanceBackendClient } from './maintenance/api/mockClient';
 
 /**
  * Extension activation entry point
@@ -457,14 +456,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	// ===== Maintenance Feature =====
-	// Check if mock mode is enabled (for frontend testing without backend)
-	const config = vscode.workspace.getConfiguration('llt-assistant');
-	const useMockMode = config.get<boolean>('maintenance.useMockMode', false);
-
-	// Use mock client if mock mode is enabled, otherwise use real client
-	const maintenanceClient = useMockMode
-		? (new MockMaintenanceBackendClient() as any)
-		: new MaintenanceBackendClient();
+	const maintenanceClient = new MaintenanceBackendClient();
 	const maintenanceTreeProvider = new MaintenanceTreeProvider();
 	const decisionDialog = new DecisionDialogManager();
 
@@ -487,24 +479,9 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			// Re-read config in case it was changed after extension activation
-			const currentConfig = vscode.workspace.getConfiguration('llt-assistant');
-			const useMockMode = currentConfig.get<boolean>('maintenance.useMockMode', false);
-
-			// Use mock client if mock mode is enabled, otherwise use real client
-			const client = useMockMode
-				? (new MockMaintenanceBackendClient() as any)
-				: maintenanceClient;
-
-			if (useMockMode) {
-				console.log('[Maintenance] Using Mock Backend Client');
-			} else {
-				console.log('[Maintenance] Using Real Backend Client');
-			}
-
 			const diffAnalyzer = new GitDiffAnalyzer(workspaceRoot);
 			const analyzeMaintenanceCommand = new AnalyzeMaintenanceCommand(
-				client,
+				maintenanceClient,
 				maintenanceTreeProvider,
 				diffAnalyzer,
 				decisionDialog
@@ -524,17 +501,9 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			// Re-read config in case it was changed after extension activation
-			const currentConfig = vscode.workspace.getConfiguration('llt-assistant');
-			const useMockMode = currentConfig.get<boolean>('maintenance.useMockMode', false);
-
-			const client = useMockMode
-				? (new MockMaintenanceBackendClient() as any)
-				: maintenanceClient;
-
 			const diffAnalyzer = new GitDiffAnalyzer(workspaceRoot);
 			const analyzeMaintenanceCommand = new AnalyzeMaintenanceCommand(
-				client,
+				maintenanceClient,
 				maintenanceTreeProvider,
 				diffAnalyzer,
 				decisionDialog

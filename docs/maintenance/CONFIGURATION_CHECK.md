@@ -5,7 +5,6 @@
 1. **`.vscode/settings.json`**:
    - ✅ `llt-assistant.maintenance.backendUrl`: `https://cs5351.efan.dev/api/v1`
    - ✅ `llt-assistant.backendUrl`: `https://cs5351.efan.dev`
-   - ✅ `llt-assistant.maintenance.useMockMode`: `false`
 
 2. **`src/maintenance/api/maintenanceClient.ts`**:
    - ✅ Base URL 配置正确
