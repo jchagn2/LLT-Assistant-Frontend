@@ -20,7 +20,7 @@ export class BackendApiClient {
 
   constructor(baseUrl?: string) {
     // Default to production server, can be overridden with config
-    this.baseUrl = baseUrl || 'https://cs5351.efan.dev/api/v1';
+    this.baseUrl = baseUrl || 'http://localhost:8886/api/v1';
   }
 
   /**
@@ -34,7 +34,7 @@ export class BackendApiClient {
   async generateTestsAsync(request: GenerateTestsRequest): Promise<AsyncJobResponse> {
     try {
       const response = await axios.post<AsyncJobResponse>(
-        `${this.baseUrl}/workflows/generate-tests`,
+        `${this.baseUrl}/http://localhost:8886/api/v1/workflows/generate-tests`,
         request,
         {
           headers: {
