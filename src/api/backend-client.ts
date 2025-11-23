@@ -34,7 +34,7 @@ export class BackendApiClient {
   async generateTestsAsync(request: GenerateTestsRequest): Promise<AsyncJobResponse> {
     try {
       const response = await axios.post<AsyncJobResponse>(
-        `${this.baseUrl}/http://localhost:8886/api/v1/workflows/generate-tests`,
+        `${this.baseUrl}/workflows/generate-tests`,
         request,
         {
           headers: {
