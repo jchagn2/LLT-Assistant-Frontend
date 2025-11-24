@@ -37,6 +37,14 @@ import {
 	AnalyzeImpactCommand,
 	RegenerationDialogManager
 } from './impact';
+import {
+	MaintenanceBackendClient,
+	GitDiffAnalyzer,
+	MaintenanceTreeProvider,
+	AnalyzeMaintenanceCommand,
+	BatchFixCommand,
+	DecisionDialogManager
+} from './maintenance';
 
 /**
  * Extension activation entry point
@@ -445,6 +453,120 @@ export function activate(context: vscode.ExtensionContext) {
 		switchImpactViewCommand,
 		regenerateTestsCommand
 	);
+
+	// ===== Maintenance Feature =====
+	const maintenanceClient = new MaintenanceBackendClient();
+	const maintenanceTreeProvider = new MaintenanceTreeProvider();
+	const decisionDialog = new DecisionDialogManager();
+
+	// Register tree view for maintenance (always register, even without workspace)
+	const maintenanceTreeView = vscode.window.createTreeView('lltMaintenanceExplorer', {
+		treeDataProvider: maintenanceTreeProvider,
+		showCollapseAll: true
+	});
+	context.subscriptions.push(maintenanceTreeView);
+
+	// Register maintenance commands (always register, check workspace in execute)
+	const analyzeMaintenanceCmd = vscode.commands.registerCommand(
+		'llt-assistant.analyzeMaintenance',
+		async () => {
+			const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+			if (!workspaceRoot) {
+				vscode.window.showWarningMessage(
+					'Please open a folder as workspace first. Click "Open Folder" button or use File → Open Folder.'
+				);
+				return;
+			}
+
+			const diffAnalyzer = new GitDiffAnalyzer(workspaceRoot);
+			const analyzeMaintenanceCommand = new AnalyzeMaintenanceCommand(
+				maintenanceClient,
+				maintenanceTreeProvider,
+				diffAnalyzer,
+				decisionDialog
+			);
+			await analyzeMaintenanceCommand.execute();
+		}
+	);
+
+	const refreshMaintenanceViewCmd = vscode.commands.registerCommand(
+		'llt-assistant.refreshMaintenanceView',
+		async () => {
+			const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+			if (!workspaceRoot) {
+				vscode.window.showWarningMessage(
+					'Please open a folder as workspace first. Click "Open Folder" button or use File → Open Folder.'
+				);
+				return;
+			}
+
+			const diffAnalyzer = new GitDiffAnalyzer(workspaceRoot);
+			const analyzeMaintenanceCommand = new AnalyzeMaintenanceCommand(
+				maintenanceClient,
+				maintenanceTreeProvider,
+				diffAnalyzer,
+				decisionDialog
+			);
+			await analyzeMaintenanceCommand.execute();
+		}
+	);
+
+	const clearMaintenanceCmd = vscode.commands.registerCommand(
+		'llt-assistant.clearMaintenanceAnalysis',
+		() => {
+			maintenanceTreeProvider.clear();
+			vscode.window.showInformationMessage('Maintenance analysis cleared');
+		}
+	);
+
+	const batchFixTestsCmd = vscode.commands.registerCommand(
+		'llt-assistant.batchFixTests',
+		async () => {
+			const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+			if (!workspaceRoot) {
+				vscode.window.showWarningMessage(
+					'Please open a folder as workspace first. Click "Open Folder" button or use File → Open Folder.'
+				);
+				return;
+			}
+
+			const batchFixCommand = new BatchFixCommand(maintenanceClient, maintenanceTreeProvider);
+			const result = maintenanceTreeProvider.getAnalysisResult();
+			if (!result) {
+				vscode.window.showWarningMessage(
+					'No maintenance analysis available. Run "Analyze Maintenance" first.'
+				);
+				return;
+			}
+
+			// Show decision dialog again if needed
+			const decision = await decisionDialog.showDecisionDialog(result);
+			if (decision.decision === 'cancelled') {
+				return;
+			}
+
+			await batchFixCommand.execute(
+				decision.decision,
+				decision.user_description,
+				decision.selected_tests
+			);
+		}
+	);
+
+	context.subscriptions.push(
+		analyzeMaintenanceCmd,
+		refreshMaintenanceViewCmd,
+		clearMaintenanceCmd,
+		batchFixTestsCmd
+	);
+
+	// Watch for configuration changes
+	const maintenanceConfigListener = vscode.workspace.onDidChangeConfiguration((e) => {
+		if (e.affectsConfiguration('llt-assistant.maintenance.backendUrl')) {
+			maintenanceClient.updateBackendUrl();
+		}
+	});
+	context.subscriptions.push(maintenanceConfigListener);
 }
 
 /**

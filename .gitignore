@@ -9,3 +9,13 @@ test-workspace
 
 .DS_Store
 .claude/
+
+# Documentation files (not needed in repo)
+docs/
+
+# Cursor plans
+.cursor/
+
+# VSCode workspace settings (personal preferences)
+.vscode/settings.json
+.vscode/tasks.json
