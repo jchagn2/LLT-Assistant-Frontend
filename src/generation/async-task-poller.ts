@@ -11,7 +11,7 @@ import { TaskStatusResponse, GenerateTestsResult } from './types';
 /**
  * Polling configuration
  */
-export interface PollingConfig {
+interface PollingConfig {
   /** Polling interval in milliseconds (default: 1500ms) */
   intervalMs?: number;
 
@@ -28,7 +28,7 @@ export interface PollingConfig {
 /**
  * Polling events that can be emitted
  */
-export type PollingEvent =
+type PollingEvent =
   | { type: 'pending'; taskId: string }
   | { type: 'processing'; taskId: string }
   | { type: 'completed'; result: GenerateTestsResult }
@@ -38,12 +38,12 @@ export type PollingEvent =
 /**
  * Callback for polling events
  */
-export type PollingEventCallback = (event: PollingEvent) => void;
+type PollingEventCallback = (event: PollingEvent) => void;
 
 /**
  * Error thrown when task polling fails
  */
-export class TaskPollingError extends Error {
+class TaskPollingError extends Error {
   constructor(
     message: string,
     public readonly taskId: string,
@@ -57,7 +57,7 @@ export class TaskPollingError extends Error {
 /**
  * Error thrown when task times out
  */
-export class TaskTimeoutError extends Error {
+class TaskTimeoutError extends Error {
   constructor(
     public readonly taskId: string,
     public readonly elapsedMs: number
@@ -72,7 +72,7 @@ export class TaskTimeoutError extends Error {
  *
  * Polls the backend API until task completion or timeout.
  */
-export class TaskPoller {
+class TaskPoller {
   private readonly config: Required<PollingConfig>;
   private eventCallback?: PollingEventCallback;
   private startTime: number = 0;

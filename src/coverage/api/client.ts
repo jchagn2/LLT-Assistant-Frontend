@@ -10,7 +10,7 @@ import {
 	TaskStatusResponse
 } from './types';
 
-export class CoverageError extends Error implements CoverageBackendError {
+class CoverageError extends Error implements CoverageBackendError {
 	type: 'network' | 'validation' | 'server' | 'timeout' | 'unknown';
 	detail: string;
 	statusCode?: number;

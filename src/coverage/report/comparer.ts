@@ -6,7 +6,7 @@
 import * as vscode from 'vscode';
 import { CoverageReport, CoverageComparison, CoverageFileData } from '../api/types';
 
-export class CoverageComparer {
+class CoverageComparer {
 	/**
 	 * Compare two coverage reports
 	 */

@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { ConfirmationResult } from '../types';
 
 /**
  * Progress stage definition for multi-stage operations
@@ -8,6 +7,15 @@ export interface ProgressStage {
   message: string;
   percentage: number;
 }
+
+/**
+ * User confirmation result from scenario confirmation dialog
+ */
+export interface ConfirmationResult {
+  action: 'proceed' | 'add_more' | 'cancel';
+  additionalInput?: string;
+}
+
 
 /**
  * UI dialog components for user interaction
