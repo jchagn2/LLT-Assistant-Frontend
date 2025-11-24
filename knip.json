@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": ["src/extension.ts"],
+  "project": ["src/**/*.ts"],
+  "ignore": [
+    "src/test/**",
+    "src/test/**/.*",
+    "out/**",
+    "dist/**",
+    "node_modules/**",
+    ".vscode-test.mjs",
+    "coverage/**"
+  ],
+  "ignoreDependencies": [
+    "@types/vscode",
+    "@vscode/test-electron",
+    "fast-check",
+    "glob",
+    "source-map-support",
+    "@istanbuljs/nyc-config-typescript"
+  ]
+}
