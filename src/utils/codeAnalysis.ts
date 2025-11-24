@@ -1,5 +1,16 @@
 import * as vscode from 'vscode';
-import { FunctionInfo } from '../types';
+
+/**
+ * Function information extracted from code
+ */
+interface FunctionInfo {
+  name: string;
+  code: string;
+  parameters: string[];
+  returnType?: string;
+  docstring?: string;
+  modulePath: string;
+}
 
 /**
  * Utility functions for analyzing Python code
