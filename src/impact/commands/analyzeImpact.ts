@@ -8,7 +8,7 @@ import { GitDiffExtractor } from '../git/diffExtractor';
 import { ImpactAnalysisClient } from '../api/impactClient';
 import { ImpactTreeProvider } from '../ui/impactTreeProvider';
 import { ChangeDetectionResult } from '../models/types';
-import { DetectCodeChangesRequest } from '../api/types';
+import { ImpactAnalysisRequest } from '../api/types';
 
 /**
  * Analyze Impact Command
@@ -72,43 +72,51 @@ export class AnalyzeImpactCommand {
 						// Step 4: Send to backend for analysis
 						progress.report({ message: 'Analyzing impact on tests...', increment: 40 });
 
-						// Process each changed file
+						// Build the new request structure
+						const changedFilesList = Array.from(changes.entries()).map(([filePath, change]) => ({
+							path: filePath,
+							change_type: 'modified' as const
+						}));
+
+						// Extract git diff for the changed files
+						const gitDiff = await diffExtractor.getDiffForFiles(changedFilesList.map(f => f.path));
+
+						const request: ImpactAnalysisRequest = {
+							project_context: {
+								files_changed: changedFilesList,
+								related_tests: previousTests ? [previousTests] : []
+							},
+							git_diff: gitDiff,
+							project_id: 'default'
+						};
+
+						// Process the request
 						const allAffectedTests: any[] = [];
 						const allFunctionChanges: any[] = [];
 						let totalLinesAdded = 0;
 						let totalLinesRemoved = 0;
 						const failedFiles: string[] = [];
+						let contextId = `analysis-${Date.now()}`;
 
-						for (const [filePath, change] of changes.entries()) {
-							const request: DetectCodeChangesRequest = {
-								changes: {
-									old_code: change.old_content,
-									new_code: change.new_content,
-									file_path: filePath
-								},
-								previous_tests: previousTests
-							};
+						try {
+							const response = await this.client.detectCodeChanges(request);
+							contextId = response.context_id;
 
-							try {
-								const response = await this.client.detectCodeChanges(request);
-
-								// Collect results
-								allAffectedTests.push(...response.affected_tests);
-								allFunctionChanges.push(...response.change_summary.functions_changed);
-								totalLinesAdded += response.change_summary.lines_added;
-								totalLinesRemoved += response.change_summary.lines_removed;
-							} catch (error) {
-								console.error(`Error analyzing ${filePath}:`, error);
-								failedFiles.push(filePath);
-								// Continue with other files
+							// Collect results
+							allAffectedTests.push(...response.impacted_tests);
+							if (response.summary) {
+								totalLinesAdded += response.summary.lines_changed;
 							}
+						} catch (error) {
+							console.error(`Error analyzing impact:`, error);
+							failedFiles.push(...changedFilesList.map(f => f.path));
 						}
 
 						// Step 5: Build combined result
 						progress.report({ message: 'Building analysis results...', increment: 80 });
 
 						const result: ChangeDetectionResult = {
-							context_id: `analysis-${Date.now()}`,
+							context_id: contextId,
 							affected_tests: allAffectedTests,
 							change_summary: {
 								functions_changed: allFunctionChanges,

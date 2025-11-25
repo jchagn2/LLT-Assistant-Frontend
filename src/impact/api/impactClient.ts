@@ -6,8 +6,8 @@
 import * as vscode from 'vscode';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import {
-	DetectCodeChangesRequest,
-	DetectCodeChangesResponse,
+	ImpactAnalysisRequest,
+	ImpactAnalysisResponse,
 	BackendError,
 	BackendErrorType,
 	HealthCheckResponse
@@ -83,8 +83,8 @@ export class ImpactAnalysisClient {
 	 * Detect code changes and get affected tests
 	 */
 	async detectCodeChanges(
-		request: DetectCodeChangesRequest
-	): Promise<DetectCodeChangesResponse> {
+		request: ImpactAnalysisRequest
+	): Promise<ImpactAnalysisResponse> {
 		try {
 			// Add client metadata
 			request.client_metadata = this.getClientMetadata();
@@ -93,8 +93,8 @@ export class ImpactAnalysisClient {
 			console.log('[Impact Analysis] Request Payload:', JSON.stringify(request, null, 2));
 
 			// Make API call
-			const response = await this.axiosInstance.post<DetectCodeChangesResponse>(
-				'/workflows/detect-code-changes',
+			const response = await this.axiosInstance.post<ImpactAnalysisResponse>(
+				'/analysis/impact',
 				request
 			);
 
@@ -113,11 +113,11 @@ export class ImpactAnalysisClient {
 	 * Batch detect changes for multiple files
 	 */
 	async detectBatchChanges(
-		requests: DetectCodeChangesRequest[]
-	): Promise<DetectCodeChangesResponse[]> {
+		requests: ImpactAnalysisRequest[]
+	): Promise<ImpactAnalysisResponse[]> {
 		try {
 			// Process each request sequentially to avoid overwhelming the backend
-			const results: DetectCodeChangesResponse[] = [];
+			const results: ImpactAnalysisResponse[] = [];
 
 			for (const request of requests) {
 				const result = await this.detectCodeChanges(request);
