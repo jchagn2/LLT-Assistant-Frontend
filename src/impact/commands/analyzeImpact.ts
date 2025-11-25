@@ -67,7 +67,7 @@ export class AnalyzeImpactCommand {
 
 						// Step 3: Get all test files
 						progress.report({ message: 'Collecting test files...', increment: 30 });
-						const previousTests = await diffExtractor.getAllTestFiles();
+						const previousTests = await diffExtractor.getAllTestFilePaths();
 
 						// Step 4: Send to backend for analysis
 						progress.report({ message: 'Analyzing impact on tests...', increment: 40 });
@@ -84,7 +84,7 @@ export class AnalyzeImpactCommand {
 						const request: ImpactAnalysisRequest = {
 							project_context: {
 								files_changed: changedFilesList,
-								related_tests: previousTests ? [previousTests] : []
+								related_tests: previousTests || []
 							},
 							git_diff: gitDiff,
 							project_id: 'default'

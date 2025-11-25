@@ -322,6 +322,19 @@ export class GitDiffExtractor {
 	}
 
 	/**
+	 * Get all test file paths in the workspace
+	 */
+	async getAllTestFilePaths(): Promise<Array<string>> {
+		try {
+			const testFiles = await vscode.workspace.findFiles('**/test_*.py', '**/node_modules/**');
+			return testFiles.map(fileUri => vscode.workspace.asRelativePath(fileUri));
+		} catch (error) {
+			console.error('Error getting test file paths:', error);
+			return [];
+		}
+	}
+
+	/**
 	 * Get all test files in the workspace
 	 */
 	async getAllTestFiles(): Promise<string> {
