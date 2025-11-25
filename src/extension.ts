@@ -20,9 +20,7 @@ import {
 	QualityTreeProvider,
 	AnalyzeQualityCommand,
 	QualityStatusBarManager,
-	QualityConfigManager,
-	IssueDecorator,
-	QualitySuggestionProvider
+	QualityConfigManager
 } from './quality';
 import {
 	CoverageBackendClient,
@@ -127,17 +125,36 @@ export async function activate(context: vscode.ExtensionContext) {
 	const qualityBackendClient = new QualityBackendClient();
 	const qualityTreeProvider = new QualityTreeProvider();
 	const qualityStatusBar = new QualityStatusBarManager();
-	const issueDecorator = new IssueDecorator();
-	const suggestionProvider = new QualitySuggestionProvider();
+	// Note: IssueDecorator and QualitySuggestionProvider are not used in basic setup
 	const analyzeCommand = new AnalyzeQualityCommand(qualityBackendClient, qualityTreeProvider);
+
+	// Register Quality Analysis commands
+	const analyzeQualityDisposable = vscode.commands.registerCommand('llt-assistant.analyzeQuality', () => {
+		console.log('[LLT Quality] Command llt-assistant.analyzeQuality triggered');
+		analyzeCommand.execute();
+	});
+	context.subscriptions.push(analyzeQualityDisposable);
+
+	const refreshQualityDisposable = vscode.commands.registerCommand('llt-assistant.refreshQualityView', () => {
+		console.log('[LLT Quality] Command llt-assistant.refreshQualityView triggered');
+		qualityTreeProvider.refresh();
+	});
+	context.subscriptions.push(refreshQualityDisposable);
+
+	const clearQualityDisposable = vscode.commands.registerCommand('llt-assistant.clearQualityIssues', () => {
+		console.log('[LLT Quality] Command llt-assistant.clearQualityIssues triggered');
+		qualityTreeProvider.clear();
+	});
+	context.subscriptions.push(clearQualityDisposable);
 
 	const qualityTreeView = vscode.window.createTreeView('lltQualityExplorer', {
 		treeDataProvider: qualityTreeProvider,
 		showCollapseAll: true
 	});
 	context.subscriptions.push(qualityTreeView);
-	
+
 	console.log('LLT Assistant extension fully activated');
+	console.log('[LLT Quality] Commands registered successfully');
 }
 
 /**
@@ -160,10 +177,9 @@ function registerContextCommands(
 		if (confirm !== 'Yes') { return; }
 
 		outputChannel.appendLine('User triggered re-index...');
-        // Clear state and re-run the startup logic
-        await contextState.clear();
+        // Correct re-index implementation: DELETE -> POST
+        await projectIndexer!.reindexProject();
         statusView.refresh();
-		await autoIndexOnStartup(contextState, projectIndexer, statusView, outputChannel);
 	});
 
 	const clearCacheCommand = vscode.commands.registerCommand('llt.clearCache', async () => {
@@ -302,7 +318,7 @@ async function autoIndexOnStartup(
             );
             if (action === 'Re-index Now') {
                 outputChannel.appendLine('User chose to re-index an outdated cache.');
-                await projectIndexer.initializeProject();
+                await projectIndexer.reindexProject();
                 vscode.window.showInformationMessage('Project re-indexed successfully!');
             } else {
                 outputChannel.appendLine('User skipped re-indexing. Context features may be stale.');

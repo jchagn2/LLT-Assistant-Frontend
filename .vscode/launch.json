@@ -7,7 +7,7 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
-        "/Users/efan404/Downloads/coverage_test"
+        "/Users/efan404/Downloads/test-LLT"
       ],
       "outFiles": [
         "${workspaceFolder}/dist/**/*.js"
