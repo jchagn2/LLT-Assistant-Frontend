@@ -310,6 +310,14 @@ export class ProjectIndexer {
       this.contextState.setVersion(1); // Initial version
       this.contextState.updateLastIndexedAt();
 
+      // CRITICAL: Add the actual symbol data to cache
+      this.outputChannel.appendLine(`[LLT] Adding ${data.length} files to cache...`);
+      for (const fileData of data) {
+        this.contextState.setSymbols(fileData.filePath, fileData.symbols);
+        this.outputChannel.appendLine(`  Cached: ${fileData.filePath} (${fileData.symbols.length} symbols)`);
+      }
+      this.outputChannel.appendLine(`✅ Cache populated with ${data.length} files, ${data.reduce((sum, f) => sum + f.symbols.length, 0)} symbols`);
+
       return response;
     } catch (error: any) {
       this.handleBackendError(error);
