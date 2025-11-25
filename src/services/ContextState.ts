@@ -350,6 +350,22 @@ export class ContextState {
   }
 
   /**
+   * Clear only symbol data while preserving project metadata
+   * Used for graceful recovery from version conflicts
+   */
+  clearSymbolsOnly(): void {
+    if (!this.cache) {
+      console.warn('[LLT ContextState] Cannot clear symbols: cache not initialized');
+      return;
+    }
+    
+    console.log('[LLT ContextState] Clearing only symbol data');
+    this.cache.fileSymbols.clear();
+    this.cache.statistics.totalFiles = 0;
+    this.cache.statistics.totalSymbols = 0;
+  }
+
+  /**
    * Update last indexed timestamp
    */
   updateLastIndexedAt(): void {

@@ -180,19 +180,66 @@ export class ApiClient {
   }
 
   /**
-   * Check project status on the backend
+   * Get full project status from the backend including version and data
    */
-  async getProjectStatus(projectId: string): Promise<{ status: 'ok' | 'not_found' }> {
+  async getProjectStatus(projectId: string): Promise<{
+    status: 'ok' | 'not_found';
+    project_id?: string;
+    version?: number;
+    indexed_files?: number;
+    indexed_symbols?: number;
+    last_updated_at?: string;
+  }> {
     console.log(`[LLT API] GET /context/projects/${projectId}/status`);
     try {
-      // We expect this to either succeed (200 OK) or fail (404 Not Found)
       const response = await this.get(`/context/projects/${projectId}/status`);
-      return { status: 'ok' };
+      return {
+        status: 'ok',
+        project_id: response.project_id,
+        version: response.backend_version || response.version,
+        indexed_files: response.indexed_files,
+        indexed_symbols: response.indexed_symbols,
+        last_updated_at: response.last_updated_at
+      };
     } catch (error: any) {
       if (error instanceof HttpError && error.status === 404) {
         return { status: 'not_found' };
       }
-      // For other errors (like connection refused), re-throw
+      throw this.normalizeError(error);
+    }
+  }
+
+  /**
+   * Get full project data including all files and symbols
+   * Used for graceful recovery from version conflicts
+   */
+  async getProjectData(projectId: string): Promise<{
+    project_id: string;
+    version: number;
+    workspace_path?: string;
+    files: Array<{
+      path: string;
+      symbols: Array<{
+        name: string;
+        kind: string;
+        signature: string;
+        line_start: number;
+        line_end: number;
+        calls: string[];
+      }>;
+    }>;
+  }> {
+    console.log(`[LLT API] GET /context/projects/${projectId}`);
+    
+    try {
+      const response = await this.get(`/context/projects/${projectId}`);
+      return {
+        project_id: response.project_id,
+        version: response.version,
+        workspace_path: response.workspace_path,
+        files: response.files || []
+      };
+    } catch (error: any) {
       throw this.normalizeError(error);
     }
   }

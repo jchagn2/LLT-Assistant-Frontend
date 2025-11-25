@@ -42,6 +42,7 @@ export class IncrementalUpdater implements vscode.Disposable {
   private statusBarItem: vscode.StatusBarItem;
   private apiClient: ApiClient;
   private outputChannel: vscode.OutputChannel;
+  private isOutOfSync = false; // Track if version conflict occurred
 
   constructor(
     private contextState: ContextState,
@@ -215,8 +216,18 @@ export class IncrementalUpdater implements vscode.Disposable {
    * Process file update
    */
   private async processUpdate(document: vscode.TextDocument): Promise<void> {
-    const filePath = document.uri.fsPath;
+    // If we're out of sync, block all updates until re-index
+    if (this.isOutOfSync) {
+      console.warn('[LLT IncrementalUpdater] Out of sync - blocking update. Re-index required.');
+      this.outputChannel.appendLine(`Blocked: ${vscode.workspace.asRelativePath(document.uri)} - cache is out of sync`);
+      return;
+    }
+
+    const absolutePath = document.uri.fsPath;
+    const relativePath = vscode.workspace.asRelativePath(document.uri);
     const projectId = this.contextState.getProjectId();
+    
+    console.log(`[LLT] Path validation - absolute: ${absolutePath}, relative: ${relativePath}`);
 
     if (!projectId) {
       console.warn('[LLT IncrementalUpdater] Project not initialized, skipping update');
@@ -228,15 +239,15 @@ export class IncrementalUpdater implements vscode.Disposable {
     this.statusBarItem.show();
 
     try {
-      console.log(`[LLT IncrementalUpdater] Processing update for ${filePath}`);
-      this.outputChannel.appendLine(`Processing update: ${filePath}`);
+      console.log(`[LLT IncrementalUpdater] Processing update for ${relativePath}`);
+      this.outputChannel.appendLine(`Processing update: ${relativePath}`);
 
       // Extract current symbols
       const { extractSymbolsFromDocument } = await import('../utils/symbolExtraction.js');
       const newSymbols = await extractSymbolsFromDocument(document);
 
       // Get old symbols from cache
-      const oldSymbols = this.contextState.getSymbols(filePath) || [];
+      const oldSymbols = this.contextState.getSymbols(absolutePath) || [];
 
       // Calculate diff
       const diff = this.calculateDiff(oldSymbols, newSymbols);
@@ -245,7 +256,7 @@ export class IncrementalUpdater implements vscode.Disposable {
       const backendChanges = this.formatDiffForBackend(diff);
 
       if (backendChanges.length === 0) {
-        console.log(`[LLT IncrementalUpdater] No changes detected for ${filePath}`);
+        console.log(`[LLT IncrementalUpdater] No changes detected for ${relativePath}`);
         this.showSuccessStatus();
         return;
       }
@@ -253,14 +264,101 @@ export class IncrementalUpdater implements vscode.Disposable {
       console.log(`[LLT IncrementalUpdater] Detected ${backendChanges.length} changes`);
       this.outputChannel.appendLine(`Detected ${backendChanges.length} changes`);
 
-      // Send to backend
-      await this.sendToBackend(projectId, filePath, backendChanges);
+      // Send to backend (use relative path)
+      try {
+        await this.sendToBackend(projectId, relativePath, 'modified', backendChanges);
+      } catch (error: any) {
+        // Handle version conflict with automatic recovery
+        if (error.code === 'CONFLICT') {
+          console.log('[LLT IncrementalUpdater] Version conflict detected, attempting automatic recovery...');
+          this.outputChannel.appendLine(`⚠️ Version conflict detected for ${relativePath}. Attempting automatic recovery...`);
+          
+          try {
+            // Step 1: Get latest project data from backend
+            this.outputChannel.appendLine('  → Fetching latest project data from backend...');
+            const projectData = await this.apiClient.getProjectData(projectId);
+            
+            // Step 2: Update local cache with backend data
+            this.outputChannel.appendLine(`  → Updating local cache with ${projectData.files.length} files, version ${projectData.version}...`);
+            
+            // Clear only symbol data, preserve project metadata
+            this.contextState.clearSymbolsOnly();
+            
+            // Repopulate cache with backend data
+            for (const file of projectData.files) {
+              // Find matching document or use file path directly
+              const fileUri = vscode.Uri.file(`${projectData.workspace_path}/${file.path}`);
+              
+              // Transform symbols to match SymbolInfo interface (type casting for kinds)
+              const transformedSymbols = file.symbols.map(sym => ({
+                ...sym,
+                kind: sym.kind as SymbolInfo['kind'] // Cast string to literal type
+              }));
+              
+              this.contextState.setSymbols(fileUri.fsPath, transformedSymbols);
+            }
+            
+            // Update version
+            this.contextState.setVersion(projectData.version);
+            await this.contextState.save();
+            
+            this.outputChannel.appendLine('  ✅ Cache synchronized with backend');
+            
+            // Step 3: Retry the incremental update with new version
+            this.outputChannel.appendLine(`  → Retrying update with version ${projectData.version}...`);
+            
+            // Re-extract symbols (in case they changed during sync)
+            const retrySymbols = await extractSymbolsFromDocument(document);
+            const retryDiff = this.calculateDiff(this.contextState.getSymbols(absolutePath) || [], retrySymbols);
+            const retryBackendChanges = this.formatDiffForBackend(retryDiff);
+            
+            if (retryBackendChanges.length > 0) {
+              await this.sendToBackend(projectId, relativePath, 'modified', retryBackendChanges);
+              
+              // Update cache with new symbols
+              this.contextState.setSymbols(absolutePath, retrySymbols);
+              await this.contextState.save();
+              
+              this.outputChannel.appendLine(`  ✅ Automatic recovery successful! Update applied with ${retryBackendChanges.length} changes.`);
+            } else {
+              this.outputChannel.appendLine('  ℹ️ No changes to apply after recovery.');
+            }
+            
+            this.showSuccessStatus();
+            return; // Successfully recovered, skip error handling
+            
+          } catch (recoveryError: any) {
+            console.error('[LLT IncrementalUpdater] Automatic recovery failed:', recoveryError);
+            this.outputChannel.appendLine(`  ❌ Automatic recovery failed: ${recoveryError.message}`);
+            
+            // Fall back to manual re-index if automatic recovery fails
+            this.outputChannel.appendLine('  → Falling back to manual re-index...');
+            this.isOutOfSync = true;
+            
+            vscode.window.showErrorMessage(
+              'LLT Assistant: Failed to automatically recover from version conflict. Manual re-index required.',
+              { modal: true },
+              'Re-index Now'
+            ).then(action => {
+              if (action === 'Re-index Now') {
+                vscode.commands.executeCommand('llt.reindexProject');
+                this.isOutOfSync = false;
+              }
+            });
+            
+            throw error; // Re-throw original error
+          }
+        } else {
+          // Non-recoverable error, let handleBackendError handle it
+          throw error;
+        }
+      }
 
-      // Update cache
+      // Update cache (use absolute path to maintain consistency with cache keys)
       if (newSymbols.length === 0) {
-        this.contextState.removeFile(filePath);
+        this.contextState.removeFile(absolutePath);
       } else {
-        this.contextState.setSymbols(filePath, newSymbols);
+        this.contextState.setSymbols(absolutePath, newSymbols);
       }
 
       await this.contextState.save();
@@ -277,14 +375,16 @@ export class IncrementalUpdater implements vscode.Disposable {
   /**
    * Process file deletion
    */
-  private async processFileDeletion(filePath: string): Promise<void> {
+  private async processFileDeletion(absolutePath: string): Promise<void> {
     const projectId = this.contextState.getProjectId();
 
     if (!projectId) {
       return;
     }
 
-    const oldSymbols = this.contextState.getSymbols(filePath);
+    // Convert to relative path for consistency
+    const relativePath = vscode.workspace.asRelativePath(vscode.Uri.file(absolutePath));
+    const oldSymbols = this.contextState.getSymbols(absolutePath);
 
     if (!oldSymbols || oldSymbols.length === 0) {
       return; // File wasn't indexed, nothing to do
@@ -306,10 +406,10 @@ export class IncrementalUpdater implements vscode.Disposable {
 
     try {
       // Send deletion to backend
-      await this.sendToBackend(projectId, filePath, backendChanges);
+      await this.sendToBackend(projectId, relativePath, 'deleted');
 
       // Remove from cache
-      this.contextState.removeFile(filePath);
+      this.contextState.removeFile(absolutePath);  // Cache still uses absolute path internally
       await this.contextState.save();
 
       this.showSuccessStatus();
@@ -413,14 +513,15 @@ export class IncrementalUpdater implements vscode.Disposable {
   private async sendToBackend(
     projectId: string,
     filePath: string,
-    changes: BackendSymbolChange[]
+    action: 'modified' | 'deleted',
+    changes?: BackendSymbolChange[]
   ): Promise<void> {
     const payload: IncrementalUpdateRequest = {
       version: this.contextState.getVersion(),
       changes: [{
         file_path: filePath,
-        action: 'modified',
-        symbols_changed: changes
+        action: action,
+        symbols_changed: action === 'modified' ? changes : undefined
       }]
     };
 
@@ -451,15 +552,13 @@ export class IncrementalUpdater implements vscode.Disposable {
       // Project not initialized - trigger full index
       vscode.commands.executeCommand('llt.reindexProject');
     } else if (error.code === 'CONFLICT') {
-      this.outputChannel.appendLine(`⚠️ Version conflict detected. Cache is out of sync.`);
-      vscode.window.showWarningMessage(
-        'Project cache is out of sync. Re-index recommended.',
-        'Re-index Now'
-      ).then(action => {
-        if (action === 'Re-index Now') {
-          vscode.commands.executeCommand('llt.reindexProject');
-        }
-      });
+      // This should have been handled in processUpdate with automatic recovery
+      // Keeping this as a fallback in case something goes wrong
+      this.outputChannel.appendLine(`⚠️ Version conflict detected. Automatic recovery was attempted but failed.`);
+      this.isOutOfSync = true; // Set flag to block future updates
+      
+      // Don't show dialog here - the automatic recovery process in processUpdate should handle it
+      // If we reach here, it means automatic recovery already failed and showed a dialog
     } else {
       this.outputChannel.appendLine(`❌ Update failed: ${error.message}`);
     }
