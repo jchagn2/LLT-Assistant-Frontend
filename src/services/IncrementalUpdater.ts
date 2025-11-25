@@ -332,8 +332,10 @@ export class IncrementalUpdater implements vscode.Disposable {
   private calculateDiff(
     oldSymbols: SymbolInfo[],
     newSymbols: SymbolInfo[]
-  ): SymbolChange[] {
-    const changes: SymbolChange[] = [];
+  ): SymbolDiff {
+    const added: SymbolInfo[] = [];
+    const modified: SymbolInfo[] = [];
+    const deleted: SymbolInfo[] = [];
 
     // Create lookup maps for O(1) access
     const oldMap = new Map(oldSymbols.map(s => [s.name, s]));
@@ -345,35 +347,22 @@ export class IncrementalUpdater implements vscode.Disposable {
 
       if (!oldSym) {
         // New symbol added
-        changes.push({
-          action: 'added',
-          name,
-          newData: newSym
-        });
+        added.push(newSym);
       } else if (this.hasChanged(oldSym, newSym)) {
-        // Symbol modified
-        changes.push({
-          action: 'modified',
-          name,
-          oldData: oldSym,
-          newData: newSym
-        });
+        // Symbol modified - store new version
+        modified.push(newSym);
       }
     }
 
     // Find deleted symbols
     for (const [name, oldSym] of oldMap.entries()) {
       if (!newMap.has(name)) {
-        // Symbol deleted
-        changes.push({
-          action: 'deleted',
-          name,
-          oldData: oldSym
-        });
+        // Symbol deleted - store old version
+        deleted.push(oldSym);
       }
     }
 
-    return changes;
+    return { added, modified, deleted };
   }
 
   /**
