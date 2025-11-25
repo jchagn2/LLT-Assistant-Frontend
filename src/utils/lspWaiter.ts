@@ -1,5 +1,6 @@
 
 import * as vscode from 'vscode';
+import { LSP_MAX_RETRIES, LSP_RETRY_BASE_DELAY_MS } from '../config';
 
 /**
  * Pauses execution for a specified number of milliseconds.
@@ -45,11 +46,14 @@ export async function checkLSPReady(): Promise<boolean> {
 
 /**
  * Waits for the LSP to become ready, using an exponential backoff retry strategy.
- * @param maxRetries - The maximum number of times to retry.
- * @param initialDelay - The initial delay in milliseconds.
+ * @param maxRetries - The maximum number of times to retry (defaults to config value).
+ * @param initialDelay - The initial delay in milliseconds (defaults to config value).
  * @returns A promise that resolves to true if the LSP becomes ready, false otherwise.
  */
-export async function waitForLSP(maxRetries = 5, initialDelay = 500): Promise<boolean> {
+export async function waitForLSP(
+  maxRetries = LSP_MAX_RETRIES,
+  initialDelay = LSP_RETRY_BASE_DELAY_MS
+): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     if (await checkLSPReady()) {
       return true;

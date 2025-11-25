@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ContextState, SymbolInfo } from './ContextState';
 import { ApiClient, IncrementalUpdateResponse, apiClient } from './ApiClient';
+import { FILE_CHANGE_DEBOUNCE_MS, STATUS_SUCCESS_HIDE_DELAY_MS, STATUS_ERROR_HIDE_DELAY_MS } from '../config';
 
 /**
  * Describes a symbol change between old and new state
@@ -30,7 +31,7 @@ export interface IncrementalUpdateRequest {
 export class IncrementalUpdater implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private updateTimers = new Map<string, NodeJS.Timeout>();
-  private readonly DEBOUNCE_MS = 2000;
+  private readonly DEBOUNCE_MS = FILE_CHANGE_DEBOUNCE_MS;
   private statusBarItem: vscode.StatusBarItem;
   private apiClient: ApiClient;
   private outputChannel: vscode.OutputChannel;
@@ -450,10 +451,10 @@ export class IncrementalUpdater implements vscode.Disposable {
     this.statusBarItem.text = '$(check) Synced';
     this.statusBarItem.tooltip = 'Project context synced';
     
-    // Hide after 2 seconds
+    // Hide after configured delay
     setTimeout(() => {
       this.statusBarItem.hide();
-    }, 2000);
+    }, STATUS_SUCCESS_HIDE_DELAY_MS);
   }
 
   /**
@@ -463,9 +464,9 @@ export class IncrementalUpdater implements vscode.Disposable {
     this.statusBarItem.text = '$(error) Sync failed';
     this.statusBarItem.tooltip = `Sync failed: ${error.message}`;
     
-    // Hide after 3 seconds
+    // Hide after configured delay
     setTimeout(() => {
       this.statusBarItem.hide();
-    }, 3000);
+    }, STATUS_ERROR_HIDE_DELAY_MS);
   }
 }

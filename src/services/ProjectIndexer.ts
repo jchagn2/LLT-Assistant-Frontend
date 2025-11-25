@@ -4,6 +4,7 @@ import * as path from 'path';
 import { ContextState, SymbolInfo } from './ContextState';
 import { extractSymbolsFromDocument } from '../utils/symbolExtraction';
 import { ApiClient, InitResponse, apiClient } from './ApiClient';
+import { BATCH_SIZE } from '../config';
 
 /**
  * Extracted data from a file
@@ -17,7 +18,7 @@ interface ExtractedData {
  * Handles automatic workspace scanning and batch processing
  */
 export class ProjectIndexer {
-  private readonly BATCH_SIZE = 50;
+  private readonly BATCH_SIZE = BATCH_SIZE; // Imported from config
   private outputChannel: vscode.OutputChannel;
   private cancelFlag = false;
   private isIndexingFlag = false;

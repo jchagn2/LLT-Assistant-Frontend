@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ApiClient } from './ApiClient';
+import { MAX_CACHE_AGE_MS, CACHE_SCHEMA_VERSION } from '../config';
 
 /**
  * Cached symbol information for a single file
@@ -46,15 +47,7 @@ interface ProjectCache {
   };
 }
 
-/**
- * Current schema version - increment when changing cache structure
- */
-const CURRENT_SCHEMA_VERSION = 1;
-
-/**
- * Maximum cache age in milliseconds (30 days)
- */
-const MAX_CACHE_AGE = 30 * 24 * 60 * 60 * 1000;
+// Configuration constants are now imported from config.ts
 
 /**
  * Centralized state management for project context
@@ -163,7 +156,7 @@ export class ContextState {
     }
 
     // Check 1: Schema version
-    if (this.cache.version !== CURRENT_SCHEMA_VERSION) {
+    if (this.cache.version !== CACHE_SCHEMA_VERSION) {
       console.log('[LLT ContextState] Cache invalid: schema version mismatch');
       return false;
     }
@@ -177,7 +170,7 @@ export class ContextState {
 
     // Check 3: Age
     const age = Date.now() - this.cache.lastIndexedAt.getTime();
-    if (age > MAX_CACHE_AGE) {
+    if (age > MAX_CACHE_AGE_MS) {
       console.log(`[LLT ContextState] Cache invalid: too old (${Math.round(age / (1000 * 3600 * 24))} days)`);
       return false;
     }
@@ -288,7 +281,7 @@ export class ContextState {
         projectId,
         workspacePath,
         lastIndexedAt: new Date(),
-        version: CURRENT_SCHEMA_VERSION,
+        version: CACHE_SCHEMA_VERSION,
         backendVersion: 0,
         fileSymbols: new Map(),
         statistics: { totalFiles: 0, totalSymbols: 0 }
@@ -329,16 +322,16 @@ export class ContextState {
    * Migrate old cache versions to current version
    */
   private async migrateIfNeeded(data: any): Promise<SerializedCache> {
-    if (data.version === CURRENT_SCHEMA_VERSION) {
+    if (data.version === CACHE_SCHEMA_VERSION) {
       return data;
     }
 
-    console.log(`[LLT ContextState] Migrating cache from v${data.version} to v${CURRENT_SCHEMA_VERSION}`);
+    console.log(`[LLT ContextState] Migrating cache from v${data.version} to v${CACHE_SCHEMA_VERSION}`);
     // In a real scenario, you'd have migration logic here.
     // For now, we just update the version.
     const migrated = {
       ...data,
-      version: CURRENT_SCHEMA_VERSION,
+      version: CACHE_SCHEMA_VERSION,
       backendVersion: data.backendVersion || 0,
       fileSymbols: data.fileSymbols || {},
       statistics: data.statistics || { totalFiles: 0, totalSymbols: 0 }

@@ -54,6 +54,7 @@ import { ProjectIndexer } from './services/ProjectIndexer';
 import { IncrementalUpdater } from './services/IncrementalUpdater';
 import { ContextStatusView } from './views/ContextStatusView';
 import { waitForLSP, sleep } from './utils/lspWaiter';
+import { LSP_INITIAL_DELAY_MS, CANCEL_CLEANUP_DELAY_MS } from './config';
 
 // ===== Global Service References =====
 let contextState: ContextState | undefined;
@@ -217,7 +218,7 @@ async function autoIndexOnStartup(
     // Phase 1: Wait for LSP to be ready
     outputChannel.appendLine('Waiting for Python LSP to be ready...');
     statusView.setStatus('waitingForLSP');
-    await sleep(3000); // Initial 3s delay
+    await sleep(LSP_INITIAL_DELAY_MS); // Initial delay for LSP startup
 
     const lspReady = await waitForLSP();
     if (!lspReady) {
@@ -312,7 +313,7 @@ export async function deactivate() {
 		if (projectIndexer?.isIndexing()) {
 			console.log('[LLT] Cancelling ongoing indexing...');
 			projectIndexer.cancel();
-			await sleep(1000);
+			await sleep(CANCEL_CLEANUP_DELAY_MS); // Allow operations to finish gracefully
 		}
 		if (contextState) {
 			console.log('[LLT] Saving cache state...');
