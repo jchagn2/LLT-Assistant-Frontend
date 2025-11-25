@@ -289,22 +289,26 @@ export class IncrementalUpdater implements vscode.Disposable {
    */
   private async processFileDeletion(filePath: string): Promise<void> {
     const projectId = this.contextState.getProjectId();
-    
+
     if (!projectId) {
       return;
     }
 
     const oldSymbols = this.contextState.getSymbols(filePath);
-    
+
     if (!oldSymbols || oldSymbols.length === 0) {
       return; // File wasn't indexed, nothing to do
     }
 
-    const changes: SymbolChange[] = oldSymbols.map(symbol => ({
-      action: 'deleted' as const,
-      name: symbol.name,
-      oldData: symbol
-    }));
+    // Construct diff: all symbols are deleted
+    const diff: SymbolDiff = {
+      added: [],
+      modified: [],
+      deleted: oldSymbols
+    };
+
+    // Convert to backend format
+    const backendChanges = this.formatDiffForBackend(diff);
 
     // Show syncing indicator
     this.statusBarItem.text = '$(sync~spin) Syncing...';
@@ -312,7 +316,7 @@ export class IncrementalUpdater implements vscode.Disposable {
 
     try {
       // Send deletion to backend
-      await this.sendToBackend(projectId, filePath, changes);
+      await this.sendToBackend(projectId, filePath, backendChanges);
 
       // Remove from cache
       this.contextState.removeFile(filePath);
