@@ -156,6 +156,21 @@ export class CoverageCommands {
 	 */
 	async showCoverageItem(filePath: string, func: UncoveredFunction | { startLine: number; endLine: number; type?: string }): Promise<void> {
 		try {
+			// Check if file exists before attempting to open it
+			if (!fs.existsSync(filePath)) {
+				const fileName = path.basename(filePath);
+				const selection = await vscode.window.showWarningMessage(
+					`File not found: ${fileName}. The coverage report may be outdated or from a different project.`,
+					'Re-analyze Coverage',
+					'Dismiss'
+				);
+
+				if (selection === 'Re-analyze Coverage') {
+					await vscode.commands.executeCommand('llt-assistant.analyzeCoverage');
+				}
+				return;
+			}
+
 			// Open file and jump to the uncovered lines
 			const document = await vscode.workspace.openTextDocument(filePath);
 			const editor = await vscode.window.showTextDocument(document);

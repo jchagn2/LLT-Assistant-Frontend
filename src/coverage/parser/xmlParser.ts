@@ -144,6 +144,7 @@ export class CoverageXmlParser {
 	/**
 	 * Resolve file path from coverage.xml to absolute path
 	 * Handles relative paths relative to coverage.xml location or workspace root
+	 * Also tries common Python project structure patterns (app/, src/, etc.)
 	 */
 	private resolveFilePath(rawPath: string, reportPath?: string, workspaceRoot?: string): string {
 		// If already absolute path, return as is
@@ -155,7 +156,7 @@ export class CoverageXmlParser {
 		if (reportPath) {
 			const reportDir = path.dirname(reportPath);
 			const resolvedFromReport = path.resolve(reportDir, rawPath);
-			
+
 			// Check if file exists at this location
 			try {
 				if (fs.existsSync(resolvedFromReport)) {
@@ -166,23 +167,31 @@ export class CoverageXmlParser {
 			}
 		}
 
-		// Try resolving relative to workspace root
+		// Try multiple path variations with common Python project structures
 		if (workspaceRoot) {
-			const resolvedFromWorkspace = path.resolve(workspaceRoot, rawPath);
-			
-			// Check if file exists at this location
-			try {
-				if (fs.existsSync(resolvedFromWorkspace)) {
-					return resolvedFromWorkspace;
-				}
-			} catch {
-				// Continue to next resolution attempt
-			}
-		}
+			// Common Python project prefixes to try
+			const pathVariations = [
+				rawPath,                          // Original path
+				path.join('app', rawPath),        // Django/FastAPI style (app/)
+				path.join('src', rawPath),        // src layout (src/)
+				path.join('backend', rawPath),    // Backend folder (backend/)
+				path.join('lib', rawPath),        // Library folder (lib/)
+			];
 
-		// If workspace root is provided but file not found, still return resolved path
-		// (file might be in a different location or not exist yet)
-		if (workspaceRoot) {
+			// Try each variation until we find an existing file
+			for (const variation of pathVariations) {
+				const resolvedPath = path.resolve(workspaceRoot, variation);
+				try {
+					if (fs.existsSync(resolvedPath)) {
+						return resolvedPath;
+					}
+				} catch {
+					// Continue to next variation
+				}
+			}
+
+			// If no variation exists, log warning and return the original path resolution
+			console.warn(`[Coverage] Could not resolve file path: ${rawPath}. Tried variations: ${pathVariations.join(', ')}`);
 			return path.resolve(workspaceRoot, rawPath);
 		}
 

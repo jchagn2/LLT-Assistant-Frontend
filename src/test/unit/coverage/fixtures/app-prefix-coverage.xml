@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<coverage version="7.2.0" timestamp="1700000000000" lines-covered="50" lines-valid="100" line-rate="0.5" branches-covered="10" branches-valid="20" branch-rate="0.5" complexity="0">
+	<packages>
+		<package name="." line-rate="0.5" branch-rate="0.5" complexity="0">
+			<classes>
+				<class name="debug_routes.py" filename="api/v1/debug_routes.py" complexity="0" line-rate="0.2073" branch-rate="0">
+					<methods/>
+					<lines>
+						<line number="1" hits="1"/>
+						<line number="5" hits="0"/>
+						<line number="10" hits="0"/>
+						<line number="15" hits="0"/>
+						<line number="20" hits="1"/>
+					</lines>
+				</class>
+			</classes>
+		</package>
+	</packages>
+</coverage>
