@@ -1,0 +1,60 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Project context icon - represents project structure and indexing -->
+
+  <!-- Folder tree structure -->
+  <!-- Root folder -->
+  <path d="M3 5 L3 7 L8 7 L10 5 Z"
+        fill="currentColor"
+        opacity="0.6"/>
+  <rect x="3" y="7" width="10" height="6"
+        fill="currentColor"
+        opacity="0.4"
+        rx="1"/>
+
+  <!-- Child folder 1 -->
+  <path d="M5 10 L5 11.5 L8.5 11.5 L9.5 10 Z"
+        fill="currentColor"
+        opacity="0.7"/>
+  <rect x="5" y="11.5" width="6" height="4"
+        fill="currentColor"
+        opacity="0.5"
+        rx="0.5"/>
+
+  <!-- Child folder 2 -->
+  <path d="M5 14.5 L5 16 L8.5 16 L9.5 14.5 Z"
+        fill="currentColor"
+        opacity="0.8"/>
+  <rect x="5" y="16" width="6" height="3"
+        fill="currentColor"
+        opacity="0.6"
+        rx="0.5"/>
+
+  <!-- Tree connection lines -->
+  <line x1="8" y1="9" x2="8" y2="17"
+        stroke="currentColor"
+        stroke-width="0.5"
+        opacity="0.4"/>
+  <line x1="8" y1="12" x2="5" y2="12"
+        stroke="currentColor"
+        stroke-width="0.5"
+        opacity="0.4"/>
+  <line x1="8" y1="16" x2="5" y2="16"
+        stroke="currentColor"
+        stroke-width="0.5"
+        opacity="0.4"/>
+
+  <!-- Magnifying glass badge (indexing/search) -->
+  <circle cx="17.5" cy="16.5" r="4"
+          fill="currentColor"
+          opacity="0.9"/>
+
+  <!-- Magnifying glass -->
+  <circle cx="16.5" cy="15.5" r="2"
+          fill="none"
+          stroke="white"
+          stroke-width="1.2"/>
+  <line x1="18" y1="17" x2="19.5" y2="18.5"
+        stroke="white"
+        stroke-width="1.2"
+        stroke-linecap="round"/>
+</svg>

@@ -44,7 +44,7 @@
         {
           "id": "llt-maintenance",
           "title": "LLT Maintenance",
-          "icon": "resources/icons/llt-icon.svg"
+          "icon": "resources/icons/maintenance-icon.svg"
         }
       ]
     },
@@ -83,7 +83,7 @@
         {
           "id": "lltMaintenanceExplorer",
           "name": "Dynamic Maintenance",
-          "icon": "resources/icons/llt-icon.svg",
+          "icon": "resources/icons/maintenance-icon.svg",
           "contextualTitle": "LLT Dynamic Maintenance"
         }
       ]
