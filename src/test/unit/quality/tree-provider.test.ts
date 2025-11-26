@@ -9,7 +9,7 @@ import { TreeItemType } from '../../../quality/activityBar/types';
 import {
   createMockAnalysisResponse,
   createMockIssues,
-  createMockQualityMetrics,
+  createMockAnalysisSummary,
 } from '../../helpers/factories';
 import { resetAllMocks, mockWorkspace } from '../../mocks/vscode';
 
@@ -257,9 +257,9 @@ suite('QualityTreeProvider', () => {
   suite('Summary Item', () => {
     test('should display total issues count', async () => {
       const mockResponse = createMockAnalysisResponse({
-        metrics: createMockQualityMetrics({
-          issues_count: 15,
-          total_tests: 50,
+        summary: createMockAnalysisSummary({
+          total_issues: 15,
+          total_files: 5,
         }),
       });
       provider.refresh(mockResponse);
@@ -273,7 +273,7 @@ suite('QualityTreeProvider', () => {
 
     test('should use singular "issue" for count of 1', async () => {
       const mockResponse = createMockAnalysisResponse({
-        metrics: createMockQualityMetrics({ issues_count: 1 }),
+        summary: createMockAnalysisSummary({ total_issues: 1 }),
       });
       provider.refresh(mockResponse);
 

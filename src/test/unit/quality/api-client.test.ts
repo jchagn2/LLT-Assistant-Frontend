@@ -74,7 +74,7 @@ suite('QualityBackendClient', () => {
   });
 
   suite('analyzeQuality', () => {
-    test('should send POST request to /workflows/analyze-quality', async () => {
+    test('should send POST request to /quality/analyze', async () => {
       const mockResponse = createMockAnalysisResponse();
       axiosPostStub.resolves({ data: mockResponse, status: 200 });
 
@@ -102,7 +102,7 @@ suite('QualityBackendClient', () => {
       const result = await client.analyzeQuality(request);
 
       expect(axiosPostStub.calledOnce).to.be.true;
-      expect(axiosPostStub.firstCall.args[0]).to.equal('/workflows/analyze-quality');
+      expect(axiosPostStub.firstCall.args[0]).to.equal('/quality/analyze');
       expect(axiosPostStub.firstCall.args[1]).to.deep.equal(request);
       expect(result).to.deep.equal(mockResponse);
     });
@@ -131,7 +131,7 @@ suite('QualityBackendClient', () => {
 
       expect(result.issues).to.be.an('array');
       expect(result.issues.length).to.be.greaterThan(0);
-      expect(result.metrics).to.exist;
+      expect(result.summary).to.exist;
       expect(result.analysis_id).to.exist;
     });
 
