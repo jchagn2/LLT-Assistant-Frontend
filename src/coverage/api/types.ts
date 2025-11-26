@@ -115,6 +115,16 @@ export interface UncoveredRange {
 }
 
 /**
+ * Debug options for testing error handling
+ * Backend will simulate errors when these options are set
+ */
+export interface DebugOptions {
+	simulate_error?: boolean;
+	error_message?: string;
+	error_code?: string | null;
+}
+
+/**
  * Coverage optimization request
  */
 export interface CoverageOptimizationRequest {
@@ -122,6 +132,7 @@ export interface CoverageOptimizationRequest {
 	existing_test_code: string;
 	uncovered_ranges: UncoveredRange[];
 	framework: string;
+	debug_options?: DebugOptions;
 }
 
 /**
