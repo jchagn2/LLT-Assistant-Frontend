@@ -125,6 +125,10 @@
         "title": "LLT: Go to Line"
       },
       {
+        "command": "llt-assistant.showCoverageItem",
+        "title": "LLT: Show Coverage Item"
+      },
+      {
         "command": "llt-assistant.analyzeImpact",
         "title": "LLT: Analyze Changes",
         "icon": "$(git-compare)"

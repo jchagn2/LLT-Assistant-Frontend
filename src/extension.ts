@@ -299,6 +299,16 @@ export async function activate(context: vscode.ExtensionContext) {
 		);
 		context.subscriptions.push(codeLensNoDisposable);
 
+		// Register showCoverageItem command (used by tree view items)
+		const showCoverageItemDisposable = vscode.commands.registerCommand(
+			'llt-assistant.showCoverageItem',
+			(filePath: string, func: any) => {
+				console.log('[LLT Coverage] Command llt-assistant.showCoverageItem triggered');
+				coverageCommands.showCoverageItem(filePath, func);
+			}
+		);
+		context.subscriptions.push(showCoverageItemDisposable);
+
 		// Create tree view for Coverage Explorer
 		const coverageTreeView = vscode.window.createTreeView('lltCoverageExplorer', {
 			treeDataProvider: coverageTreeProvider,
