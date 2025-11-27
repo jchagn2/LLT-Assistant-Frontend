@@ -9,3 +9,18 @@ export {
   TaskTimeoutError,
   PollingOptions
 } from './backend-client';
+export {
+  BaseBackendClient,
+  BackendError,
+  BackendErrorType,
+  HealthCheckResponse,
+  BaseClientOptions
+} from './baseBackendClient';
+export {
+  AsyncTaskPoller,
+  TaskStatusResponse,
+  TaskStatus,
+  TaskTimeoutError as AsyncTaskTimeoutError,
+  TaskFailedError,
+  PollingOptions as AsyncPollingOptions
+} from './asyncTaskPoller';

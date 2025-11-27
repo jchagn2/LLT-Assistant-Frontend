@@ -135,18 +135,10 @@ export class InlinePreviewManager {
 			}
 		});
 
-		// Show information message
+		// Show information message (no buttons - use CodeLens instead)
 		vscode.window.showInformationMessage(
-			'Code inserted. Use CodeLens buttons to Accept or Discard.',
-			'Accept',
-			'Discard'
-		).then(selection => {
-			if (selection === 'Accept') {
-				this.acceptPreview();
-			} else if (selection === 'Discard') {
-				this.rejectPreview();
-			}
-		});
+			'Code inserted. Use CodeLens buttons above to Accept or Discard.'
+		);
 	}
 
 	/**
@@ -154,6 +146,7 @@ export class InlinePreviewManager {
 	 */
 	async acceptPreview(): Promise<void> {
 		if (!this.currentEdit) {
+			// Already accepted or no preview active
 			return;
 		}
 
@@ -180,10 +173,14 @@ export class InlinePreviewManager {
 	}
 
 	/**
-	 * Reject the preview - delete the inserted code
+	 * Reject the preview - delete the entire file
+	 *
+	 * User's requirement: When rejecting, simply delete the entire generated file
+	 * instead of trying to selectively delete the inserted range.
 	 */
 	async rejectPreview(): Promise<void> {
 		if (!this.currentEdit) {
+			// Already rejected or no preview active
 			return;
 		}
 
@@ -192,14 +189,19 @@ export class InlinePreviewManager {
 		);
 
 		if (editor) {
-			// Delete the inserted code
-			const success = await editor.edit(editBuilder => {
-				editBuilder.delete(this.currentEdit!.range);
-			});
+			// Close the editor first
+			const uri = editor.document.uri;
+			await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 
-			if (success) {
-				// Remove decoration
-				editor.setDecorations(this.decorationType, []);
+			// Delete the file
+			try {
+				const fs = await import('fs').then(m => m.promises);
+				await fs.unlink(uri.fsPath);
+				vscode.window.showInformationMessage('Generated file deleted');
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Failed to delete file: ${error instanceof Error ? error.message : String(error)}`
+				);
 			}
 		}
 
@@ -212,8 +214,6 @@ export class InlinePreviewManager {
 			this.documentChangeListener.dispose();
 			this.documentChangeListener = undefined;
 		}
-
-		vscode.window.showInformationMessage('Code discarded');
 	}
 
 	/**

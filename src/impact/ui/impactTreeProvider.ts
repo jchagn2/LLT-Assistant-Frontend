@@ -153,7 +153,7 @@ export class ImpactTreeProvider implements vscode.TreeDataProvider<ImpactTreeIte
 			);
 		}
 
-		const filesChanged = this.data.change_summary.functions_changed.length;
+		const filesChanged = this.data.change_summary.files_changed_count;
 		const testsAffected = this.data.affected_tests.length;
 		const linesAdded = this.data.change_summary.lines_added;
 		const linesRemoved = this.data.change_summary.lines_removed;
@@ -250,6 +250,16 @@ export class ImpactTreeProvider implements vscode.TreeDataProvider<ImpactTreeIte
 			return this.getSummaryChildren();
 		}
 
+		// Handle Files Changed Group expansion
+		if (parent.itemType === ImpactTreeItemType.FilesChangedGroup) {
+			return this.getFilesChangedChildren();
+		}
+
+		// Handle Tests Affected Group expansion
+		if (parent.itemType === ImpactTreeItemType.TestsAffectedGroup) {
+			return this.getTestsAffectedChildren();
+		}
+
 		if (this.viewMode === 'file-to-tests') {
 			return this.getFileToTestsChildren(parent);
 		} else {
@@ -258,7 +268,134 @@ export class ImpactTreeProvider implements vscode.TreeDataProvider<ImpactTreeIte
 	}
 
 	/**
+	 * Get children for Files Changed Group
+	 * Shows all changed files with click-to-open functionality
+	 */
+	private getFilesChangedChildren(): ImpactTreeItem[] {
+		if (!this.data) {
+			return [];
+		}
+
+		const items: ImpactTreeItem[] = [];
+		const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+
+		if (!workspaceRoot) {
+			return items;
+		}
+
+		// Group files by directory for better organization
+		const filesByDir = new Map<string, string[]>();
+
+		for (const filePath of this.data.changed_files) {
+			const dirPath = path.dirname(filePath);
+			if (!filesByDir.has(dirPath)) {
+				filesByDir.set(dirPath, []);
+			}
+			filesByDir.get(dirPath)!.push(filePath);
+		}
+
+		// Create items for each changed file
+		for (const filePath of this.data.changed_files.sort()) {
+			const fileName = path.basename(filePath);
+			const dirName = path.dirname(filePath);
+
+			const item = new ImpactTreeItem(
+				fileName,
+				vscode.TreeItemCollapsibleState.None,
+				ImpactTreeItemType.SourceFile
+			);
+
+			item.description = dirName === '.' ? '' : dirName;
+			item.iconPath = new vscode.ThemeIcon('file-code', new vscode.ThemeColor('charts.green'));
+			item.tooltip = new vscode.MarkdownString(
+				`**Modified File**\n\n` +
+				`Path: \`${filePath}\`\n\n` +
+				`Click to open this file`
+			);
+
+			// Add click command to open file
+			const fullPath = path.join(workspaceRoot, filePath);
+			item.command = {
+				command: 'vscode.open',
+				arguments: [vscode.Uri.file(fullPath)],
+				title: 'Open File'
+			};
+			item.resourceUri = vscode.Uri.file(fullPath);
+
+			items.push(item);
+		}
+
+		return items;
+	}
+
+	/**
+	 * Get children for Tests Affected Group
+	 * Shows all affected tests with click-to-jump functionality
+	 */
+	private getTestsAffectedChildren(): ImpactTreeItem[] {
+		if (!this.data) {
+			return [];
+		}
+
+		const items: ImpactTreeItem[] = [];
+
+		// Group tests by file for better organization
+		const testsByFile = new Map<string, AffectedTest[]>();
+
+		for (const test of this.data.affected_tests) {
+			if (!testsByFile.has(test.file_path)) {
+				testsByFile.set(test.file_path, []);
+			}
+			testsByFile.get(test.file_path)!.push(test);
+		}
+
+		// Create items grouped by test file
+		const sortedFiles = Array.from(testsByFile.keys()).sort();
+
+		for (const filePath of sortedFiles) {
+			const tests = testsByFile.get(filePath)!;
+
+			// If only one test in file, show it directly
+			if (tests.length === 1) {
+				items.push(this.createTestItem(tests[0]));
+			} else {
+				// Multiple tests in same file - create a group
+				const fileName = path.basename(filePath);
+
+				// Prepare metadata
+				const testFileMetadata: TestsToFilesMetadata = {
+					tests: tests,
+					impacted_by: []
+				};
+
+				const groupItem = new ImpactTreeItem(
+					fileName,
+					vscode.TreeItemCollapsibleState.Collapsed,
+					ImpactTreeItemType.TestFile,
+					testFileMetadata  // Pass as constructor parameter
+				);
+
+				groupItem.description = `${tests.length} tests`;
+				groupItem.iconPath = new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.orange'));
+				groupItem.tooltip = new vscode.MarkdownString(
+					`**Test File: ${fileName}**\n\n` +
+					`${tests.length} affected tests in this file`
+				);
+
+				items.push(groupItem);
+			}
+		}
+
+		return items;
+	}
+
+	/**
 	 * Get summary children
+	 *
+	 * Shows three expandable/clickable items:
+	 * 1. Files changed - Click to expand and see all modified source files
+	 * 2. Tests affected - Click to expand and see all impacted test files
+	 * 3. Lines changed - Summary of code additions/deletions (informational only)
 	 */
 	private getSummaryChildren(): ImpactTreeItem[] {
 		if (!this.data) {
@@ -267,27 +404,47 @@ export class ImpactTreeProvider implements vscode.TreeDataProvider<ImpactTreeIte
 
 		const items: ImpactTreeItem[] = [];
 
-		// Files changed
+		// Files changed - Expandable to show all changed files
+		const filesCount = this.data.change_summary.files_changed_count;
 		const filesItem = new ImpactTreeItem(
-			`📝 ${this.data.change_summary.functions_changed.length} files changed`,
-			vscode.TreeItemCollapsibleState.None,
-			ImpactTreeItemType.Summary
+			`📝 ${filesCount} ${filesCount === 1 ? 'file' : 'files'} changed`,
+			filesCount > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+			ImpactTreeItemType.FilesChangedGroup
+		);
+		filesItem.tooltip = new vscode.MarkdownString(
+			`**Files Changed: ${filesCount}**\n\n` +
+			`Source files that have been modified.\n\n` +
+			`Click to expand and view all changed files.`
 		);
 		items.push(filesItem);
 
-		// Tests affected
+		// Tests affected - Expandable to show all affected tests
+		const testsCount = this.data.affected_tests.length;
 		const testsItem = new ImpactTreeItem(
-			`🧪 ${this.data.affected_tests.length} tests affected`,
-			vscode.TreeItemCollapsibleState.None,
-			ImpactTreeItemType.Summary
+			`🧪 ${testsCount} ${testsCount === 1 ? 'test' : 'tests'} affected`,
+			testsCount > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+			ImpactTreeItemType.TestsAffectedGroup
+		);
+		testsItem.tooltip = new vscode.MarkdownString(
+			`**Tests Affected: ${testsCount}**\n\n` +
+			`Tests that may need to be updated due to code changes.\n\n` +
+			`Click to expand and view all affected tests.`
 		);
 		items.push(testsItem);
 
-		// Lines changed
+		// Lines changed - Informational summary (not expandable)
+		const linesAdded = this.data.change_summary.lines_added;
+		const linesRemoved = this.data.change_summary.lines_removed;
 		const linesItem = new ImpactTreeItem(
-			`📏 +${this.data.change_summary.lines_added} / -${this.data.change_summary.lines_removed} lines`,
+			`📏 +${linesAdded} / -${linesRemoved} lines`,
 			vscode.TreeItemCollapsibleState.None,
 			ImpactTreeItemType.Summary
+		);
+		linesItem.tooltip = new vscode.MarkdownString(
+			`**Lines Changed**\n\n` +
+			`- Added: +${linesAdded} lines\n` +
+			`- Removed: -${linesRemoved} lines\n` +
+			`- Net change: ${linesAdded - linesRemoved > 0 ? '+' : ''}${linesAdded - linesRemoved} lines`
 		);
 		items.push(linesItem);
 
@@ -365,8 +522,8 @@ export class ImpactTreeProvider implements vscode.TreeDataProvider<ImpactTreeIte
 				items.push(testItem);
 			}
 
-			// Add impacted by group
-			if (metadata.impacted_by.length > 0) {
+			// Add impacted by group only if we have function changes
+			if (metadata.impacted_by && metadata.impacted_by.length > 0) {
 				const groupItem = new ImpactTreeItem(
 					`📌 Impacted by ${metadata.impacted_by.length} changes`,
 					vscode.TreeItemCollapsibleState.Expanded,

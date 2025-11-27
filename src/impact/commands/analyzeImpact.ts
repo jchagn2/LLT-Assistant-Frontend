@@ -154,8 +154,10 @@ export class AnalyzeImpactCommand {
 						const result: ChangeDetectionResult = {
 							context_id: contextId,
 							affected_tests: allAffectedTests,
+							changed_files: Array.from(changes.keys()), // Store all changed file paths
 							change_summary: {
 								functions_changed: allFunctionChanges,
+								files_changed_count: changes.size, // Correct count of modified files
 								lines_added: totalLinesAdded,
 								lines_removed: totalLinesRemoved,
 								change_type: this.determineChangeType(totalLinesAdded, totalLinesRemoved)

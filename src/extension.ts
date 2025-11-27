@@ -178,8 +178,19 @@ export async function activate(context: vscode.ExtensionContext) {
 		async (issue: any) => {
 			console.log('[LLT Quality] Command llt-assistant.showIssue triggered');
 			try {
+				// Backend API uses file_path field (not file)
+				const filePath = issue.file_path;
+
+				if (!filePath) {
+					vscode.window.showWarningMessage(
+						`Cannot navigate to issue: file path is missing`
+					);
+					console.warn('[LLT Quality] Issue has undefined file_path field:', issue);
+					return;
+				}
+
 				// Open the file and navigate to the issue location
-				const document = await vscode.workspace.openTextDocument(issue.file);
+				const document = await vscode.workspace.openTextDocument(filePath);
 				const editor = await vscode.window.showTextDocument(document);
 
 				// Convert to 0-based line number (issue.line is 1-based)

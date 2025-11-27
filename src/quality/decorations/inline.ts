@@ -51,11 +51,11 @@ export class IssueDecorator {
 		// Group issues by file
 		this.issuesByFile.clear();
 		for (const issue of issues) {
-			const fileIssues = this.issuesByFile.get(issue.file);
+			const fileIssues = this.issuesByFile.get(issue.file_path);
 			if (fileIssues) {
 				fileIssues.push(issue);
 			} else {
-				this.issuesByFile.set(issue.file, [issue]);
+				this.issuesByFile.set(issue.file_path, [issue]);
 			}
 		}
 
@@ -150,15 +150,15 @@ export class IssueDecorator {
 
 		// Create hover message
 		const hoverMessage = new vscode.MarkdownString();
-		hoverMessage.appendMarkdown(`**${this.formatIssueType(issue.type)}**\n\n`);
+		hoverMessage.appendMarkdown(`**${this.formatIssueType(issue.code)}**\n\n`);
 		hoverMessage.appendMarkdown(`${issue.message}\n\n`);
 		hoverMessage.appendMarkdown(`*Detected by: ${issue.detected_by === 'llm' ? '🤖 AI' : '⚡ Rule Engine'}*\n\n`);
 
-		if (issue.suggestion.explanation) {
+		if (issue.suggestion && issue.suggestion.explanation) {
 			hoverMessage.appendMarkdown(`**Suggestion:** ${issue.suggestion.explanation}\n\n`);
 		}
 
-		if (issue.suggestion.new_code) {
+		if (issue.suggestion && issue.suggestion.new_code) {
 			hoverMessage.appendCodeblock(issue.suggestion.new_code, 'python');
 		}
 

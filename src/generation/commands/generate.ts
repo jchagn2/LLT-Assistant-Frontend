@@ -73,6 +73,17 @@ export class TestGenerationCommands {
 
 			const filePath = editor.document.uri.fsPath;
 
+			// Get relative path for backend (used to generate correct import statements)
+			const relativeFilePath = vscode.workspace.workspaceFolders?.[0]
+				? vscode.workspace.asRelativePath(editor.document.uri, false)  // false = no workspace name prefix
+				: path.basename(filePath);  // Fallback: use only filename if no workspace
+
+			console.log('[Test Generation] File paths:', {
+				absolute: filePath,
+				relative: relativeFilePath,
+				workspace: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || 'none'
+			});
+
 			let sourceCode: string;
 			let functionName: string | undefined;
 
@@ -141,11 +152,20 @@ export class TestGenerationCommands {
 				source_code: sourceCode,
 				user_description: userDescription,
 				existing_test_code: existingTestCode || undefined,
+				file_path: relativeFilePath,  // Pass relative path for correct import generation
 				context: {
 					mode: finalMode,
 					target_function: functionName
 				}
 			};
+
+			console.log('[Test Generation] API Request:', {
+				source_code_length: sourceCode.length,
+				file_path: relativeFilePath,
+				mode: finalMode,
+				target_function: functionName,
+				has_existing_tests: !!existingTestCode
+			});
 
 			this.statusBar.showGenerating();
 

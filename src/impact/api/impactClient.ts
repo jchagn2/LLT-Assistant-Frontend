@@ -1,56 +1,31 @@
 /**
  * Impact Analysis Backend Client
  * Handles communication with the backend API for impact detection
+ *
+ * ✨ Refactored to use BaseBackendClient
  */
 
 import * as vscode from 'vscode';
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import { BaseBackendClient } from '../../api/baseBackendClient';
 import {
 	ImpactAnalysisRequest,
 	ImpactAnalysisResponse,
-	BackendError,
-	BackendErrorType,
-	HealthCheckResponse
+	BackendError
 } from './types';
-import { BackendConfigManager } from '../../utils/backendConfig';
 
 /**
  * Impact Analysis Backend Client
+ *
+ * Inherits from BaseBackendClient for standardized error handling,
+ * health checks, and request management.
  */
-export class ImpactAnalysisClient {
-	private axiosInstance: AxiosInstance;
-	private backendUrl: string;
-
+export class ImpactAnalysisClient extends BaseBackendClient {
 	constructor() {
-		this.backendUrl = BackendConfigManager.getBackendUrl();
-		this.axiosInstance = axios.create({
-			baseURL: this.backendUrl,
+		// Initialize base client with feature-specific settings
+		super({
+			featureName: 'Impact Analysis',
 			timeout: 30000, // 30 seconds
-			headers: {
-				'Content-Type': 'application/json'
-			}
-		});
-	}
-
-	/**
-	 * Get backend URL from unified configuration
-	 * @deprecated - Now uses BackendConfigManager directly in constructor
-	 */
-	private getBackendUrl(): string {
-		return BackendConfigManager.getBackendUrl();
-	}
-
-	/**
-	 * Update backend URL when configuration changes
-	 */
-	updateBackendUrl(): void {
-		this.backendUrl = BackendConfigManager.getBackendUrl();
-		this.axiosInstance = axios.create({
-			baseURL: this.backendUrl,
-			timeout: 30000,
-			headers: {
-				'Content-Type': 'application/json'
-			}
+			enableRequestId: true
 		});
 	}
 
@@ -68,15 +43,10 @@ export class ImpactAnalysisClient {
 
 	/**
 	 * Check backend health
+	 * @deprecated Use healthCheck() from BaseBackendClient instead
 	 */
 	async checkHealth(): Promise<boolean> {
-		try {
-			const response = await this.axiosInstance.get<HealthCheckResponse>('/health');
-			return response.data.status === 'ok' || response.data.status === 'healthy';
-		} catch (error) {
-			console.error('Health check failed:', error);
-			return false;
-		}
+		return await this.healthCheck();
 	}
 
 	/**
@@ -93,7 +63,7 @@ export class ImpactAnalysisClient {
 			console.log('[Impact Analysis] Request Payload:', JSON.stringify(request, null, 2));
 
 			// Make API call
-			const response = await this.axiosInstance.post<ImpactAnalysisResponse>(
+			const response = await this.client.post<ImpactAnalysisResponse>(
 				'/analysis/impact',
 				request
 			);
@@ -102,10 +72,9 @@ export class ImpactAnalysisClient {
 			console.log('[Impact Analysis] Response Object:', JSON.stringify(response.data, null, 2));
 
 			return response.data;
-		} catch (error) {
-			// Log the error object
-			console.error('[Impact Analysis] Error Object:', error);
-			throw this.handleError(error);
+		} catch (error: any) {
+			// Convert BaseBackendClient errors to Impact BackendError format
+			throw this.convertToImpactError(error);
 		}
 	}
 
@@ -125,76 +94,32 @@ export class ImpactAnalysisClient {
 			}
 
 			return results;
-		} catch (error) {
-			throw this.handleError(error);
+		} catch (error: any) {
+			throw this.convertToImpactError(error);
 		}
 	}
 
 	/**
-	 * Handle API errors
+	 * Convert BaseBackendClient errors to Impact BackendError format
+	 * Maintains backward compatibility with existing error handling
 	 */
-	private handleError(error: unknown): BackendError {
-		if (axios.isAxiosError(error)) {
-			const axiosError = error as AxiosError;
-
-			// Network errors
-			if (!axiosError.response) {
-				return {
-					type: 'network' as BackendErrorType,
-					message: 'Cannot connect to LLT backend',
-					detail: axiosError.message,
-					statusCode: 0
-				};
-			}
-
-			// Timeout errors
-			if (axiosError.code === 'ECONNABORTED') {
-				return {
-					type: 'timeout' as BackendErrorType,
-					message: 'Backend request timed out',
-					detail: 'The server took too long to respond',
-					statusCode: 0
-				};
-			}
-
-			// HTTP errors
-			const statusCode = axiosError.response.status;
-
-			if (statusCode >= 400 && statusCode < 500) {
-				// Client errors (validation, etc.)
-				return {
-					type: 'validation' as BackendErrorType,
-					message: 'Invalid request',
-					detail: JSON.stringify(axiosError.response.data) || axiosError.message,
-					statusCode
-				};
-			}
-
-			if (statusCode >= 500) {
-				// Server errors
-				return {
-					type: 'server' as BackendErrorType,
-					message: 'Backend server error',
-					detail: JSON.stringify(axiosError.response.data) || axiosError.message,
-					statusCode
-				};
-			}
-
-			// Other HTTP errors
+	private convertToImpactError(error: any): BackendError {
+		// If it's already a BackendError from BaseBackendClient
+		if (error.name === 'BackendError') {
 			return {
-				type: 'http' as BackendErrorType,
-				message: `HTTP error ${statusCode}`,
-				detail: axiosError.message,
-				statusCode
+				type: error.type,
+				message: error.message,
+				detail: error.detail,
+				statusCode: error.statusCode
 			};
 		}
 
-		// Unknown errors
+		// Unknown error
 		return {
-			type: 'unknown' as BackendErrorType,
-			message: 'Unknown error occurred',
-			detail: error instanceof Error ? error.message : String(error),
-			statusCode: 0
+			type: 'unknown',
+			message: error.message || 'Unknown error occurred',
+			detail: error.detail || (error instanceof Error ? error.message : String(error)),
+			statusCode: error.statusCode || 0
 		};
 	}
 }

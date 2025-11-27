@@ -25,6 +25,13 @@ export interface GenerateTestsRequest {
   /** Optional existing test code (context for regeneration) */
   existing_test_code?: string;
 
+  /**
+   * Relative path to the source file (from workspace root)
+   * Used by backend LLM to generate correct Python import statements
+   * Example: "app/services/user.py" or "src/utils/calculator.py"
+   */
+  file_path?: string;
+
   /** Extra context if triggered by Feature 3 (Regeneration) */
   context?: {
     /** Mode: 'new' for fresh generation, 'regenerate' for fixing broken tests */

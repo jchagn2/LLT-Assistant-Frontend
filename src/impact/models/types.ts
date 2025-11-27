@@ -45,6 +45,7 @@ export interface FunctionChange {
  */
 export interface ChangeSummary {
 	functions_changed: FunctionChange[];
+	files_changed_count: number; // Number of files that were modified
 	lines_added: number;
 	lines_removed: number;
 	change_type: ChangeType;
@@ -68,6 +69,7 @@ export interface CodeChange {
 export interface ChangeDetectionResult {
 	context_id: string;
 	affected_tests: AffectedTest[];
+	changed_files: string[]; // List of all changed file paths
 	change_summary: ChangeSummary;
 	timestamp: number;
 }
@@ -139,5 +141,7 @@ export enum ImpactTreeItemType {
 	Test = 'test',
 	AffectedTestsGroup = 'affectedTestsGroup',
 	ImpactedByGroup = 'impactedByGroup',
+	FilesChangedGroup = 'filesChangedGroup',  // Group showing all changed files
+	TestsAffectedGroup = 'testsAffectedGroup', // Group showing all affected tests
 	Empty = 'empty'
 }

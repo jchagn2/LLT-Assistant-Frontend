@@ -77,18 +77,49 @@ export class CodeAnalyzer {
   ): vscode.Range | null {
     const lines = document.getText().split('\n');
 
-    // Find function start (search backwards for 'def ')
+    // Find function start (search backwards for 'def ' or 'async def ')
     let startLine = lineNumber;
+    let foundDefLine = -1;
+
     while (startLine >= 0) {
-      if (lines[startLine].trim().startsWith('def ')) {
+      const trimmed = lines[startLine].trim();
+      // Support both regular and async functions
+      if (trimmed.startsWith('def ') || trimmed.startsWith('async def ')) {
+        foundDefLine = startLine;
         break;
       }
       startLine--;
     }
 
-    if (startLine < 0) {
+    if (foundDefLine < 0) {
       return null;
     }
+
+    // Check for decorators above the function definition
+    let actualStartLine = foundDefLine;
+    let checkLine = foundDefLine - 1;
+
+    while (checkLine >= 0) {
+      const trimmed = lines[checkLine].trim();
+
+      // Empty lines or comments are allowed
+      if (trimmed === '' || trimmed.startsWith('#')) {
+        checkLine--;
+        continue;
+      }
+
+      // If it's a decorator, include it
+      if (trimmed.startsWith('@')) {
+        actualStartLine = checkLine;
+        checkLine--;
+        continue;
+      }
+
+      // Otherwise, stop searching
+      break;
+    }
+
+    startLine = actualStartLine;
 
     // Find function end (next function or class, or end of file)
     const startIndent = this.getIndentation(lines[startLine]);
@@ -139,7 +170,8 @@ export class CodeAnalyzer {
    * @private
    */
   private static extractFunctionName(functionText: string): string | null {
-    const match = functionText.match(/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+    // Support both 'def' and 'async def' functions
+    const match = functionText.match(/(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
     return match ? match[1] : null;
   }
 
@@ -148,7 +180,8 @@ export class CodeAnalyzer {
    * @private
    */
   private static extractParameters(functionText: string): string[] {
-    const match = functionText.match(/def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\((.*?)\)/s);
+    // Support both 'def' and 'async def' functions
+    const match = functionText.match(/(?:async\s+)?def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\((.*?)\)/s);
     if (!match) {
       return [];
     }
@@ -180,8 +213,8 @@ export class CodeAnalyzer {
    * @private
    */
   private static extractDocstring(functionText: string): string | undefined {
-    // Match both ''' and """ docstrings
-    const match = functionText.match(/def\s+[^:]+:\s*(?:\n\s*)?('''|""")(.+?)\1/s);
+    // Match both ''' and """ docstrings, support both 'def' and 'async def'
+    const match = functionText.match(/(?:async\s+)?def\s+[^:]+:\s*(?:\n\s*)?('''|""")(.+?)\1/s);
     return match ? match[2].trim() : undefined;
   }
 
@@ -211,8 +244,8 @@ export class CodeAnalyzer {
    */
   public static isValidPythonFunction(text: string): boolean {
     const trimmed = text.trim();
-    // Check if it starts with 'def ' and contains '(' and ':'
-    return /^\s*def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*(->\s*[^:]+)?\s*:/.test(trimmed);
+    // Check if it starts with 'def' or 'async def' and contains '(' and ':'
+    return /^\s*(?:async\s+)?def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*(->\s*[^:]+)?\s*:/.test(trimmed);
   }
 
   /**

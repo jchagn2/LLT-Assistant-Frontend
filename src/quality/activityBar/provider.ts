@@ -147,6 +147,7 @@ export class QualityTreeProvider implements vscode.TreeDataProvider<QualityTreeI
 	 */
 	private createFileItem(filePath: string, issues: QualityIssue[]): QualityTreeItem {
 		const fileName = filePath.split('/').pop() || filePath;
+
 		const criticalCount = issues.filter(
 			i => i.severity === 'error'
 		).length;
@@ -174,13 +175,13 @@ export class QualityTreeProvider implements vscode.TreeDataProvider<QualityTreeI
 	 */
 	private createIssueItem(issue: QualityIssue): QualityTreeItem {
 		const icon = this.getIconForSeverity(issue.severity);
-		const label = `Line ${issue.line}: ${this.formatIssueType(issue.type)}`;
+		const label = `Line ${issue.line}: ${this.formatIssueType(issue.code)}`;
 
 		const tooltip = new vscode.MarkdownString();
-		tooltip.appendMarkdown(`**${this.formatIssueType(issue.type)}**\n\n`);
+		tooltip.appendMarkdown(`**${this.formatIssueType(issue.code)}**\n\n`);
 		tooltip.appendMarkdown(`${issue.message}\n\n`);
 		tooltip.appendMarkdown(`*Detected by: ${issue.detected_by === 'llm' ? '🤖 AI' : '⚡ Rule Engine'}*\n\n`);
-		if (issue.suggestion.explanation) {
+		if (issue.suggestion && issue.suggestion.explanation) {
 			tooltip.appendMarkdown(`**Suggestion:** ${issue.suggestion.explanation}\n`);
 		}
 
@@ -234,11 +235,14 @@ export class QualityTreeProvider implements vscode.TreeDataProvider<QualityTreeI
 		const filteredIssues = this.getFilteredIssues();
 
 		for (const issue of filteredIssues) {
-			const issues = fileMap.get(issue.file);
+			// Use file_path field (backend API contract)
+			const filePath = issue.file_path;
+
+			const issues = fileMap.get(filePath);
 			if (issues) {
 				issues.push(issue);
 			} else {
-				fileMap.set(issue.file, [issue]);
+				fileMap.set(filePath, [issue]);
 			}
 		}
 
@@ -250,7 +254,7 @@ export class QualityTreeProvider implements vscode.TreeDataProvider<QualityTreeI
 	 */
 	private getIssuesForFile(filePath: string): QualityTreeItem[] {
 		const filteredIssues = this.getFilteredIssues();
-		const issues = filteredIssues.filter(i => i.file === filePath);
+		const issues = filteredIssues.filter(i => i.file_path === filePath);
 
 		// Sort by line number
 		issues.sort((a, b) => a.line - b.line);

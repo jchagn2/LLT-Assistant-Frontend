@@ -3,9 +3,12 @@
  *
  * Communicates with the LLT Assistant Backend API.
  * Implements the async workflow: POST /workflows/generate-tests + polling
+ *
+ * ✨ Refactored to use BaseBackendClient and AsyncTaskPoller
  */
 
-import axios, { AxiosError } from 'axios';
+import { BaseBackendClient, BaseClientOptions } from './baseBackendClient';
+import { AsyncTaskPoller, TaskStatusResponse as GenericTaskStatusResponse } from './asyncTaskPoller';
 import {
   GenerateTestsRequest,
   AsyncJobResponse,
@@ -15,6 +18,7 @@ import {
 
 /**
  * Error thrown when task polling fails
+ * @deprecated Use TaskFailedError from AsyncTaskPoller
  */
 export class TaskPollingError extends Error {
   constructor(
@@ -29,6 +33,7 @@ export class TaskPollingError extends Error {
 
 /**
  * Error thrown when task times out
+ * @deprecated Use TaskTimeoutError from AsyncTaskPoller
  */
 export class TaskTimeoutError extends Error {
   constructor(
@@ -52,13 +57,30 @@ export interface PollingOptions {
 
 /**
  * Backend API Client for Test Generation
+ *
+ * Inherits from BaseBackendClient for standardized error handling,
+ * health checks, and request management.
  */
-export class BackendApiClient {
-  private baseUrl: string;
+export class BackendApiClient extends BaseBackendClient {
+  private taskPoller: AsyncTaskPoller<GenerateTestsResult>;
 
   constructor(baseUrl?: string) {
-    // Default to production server, can be overridden with config
-    this.baseUrl = baseUrl || 'http://localhost:8886/api/v1';
+    // Initialize base client with feature-specific settings
+    super({
+      baseUrl,
+      featureName: 'Test Generation',
+      timeout: 30000,
+      enableRequestId: true
+    });
+
+    // Initialize task poller with default options
+    this.taskPoller = new AsyncTaskPoller<GenerateTestsResult>({
+      initialIntervalMs: 1500,
+      maxIntervalMs: 5000,
+      timeoutMs: 60000,
+      backoffMultiplier: 1.5,
+      jitterFactor: 0.1
+    });
   }
 
   /**
@@ -70,29 +92,16 @@ export class BackendApiClient {
    * @returns AsyncJobResponse with task_id for polling
    */
   async generateTestsAsync(request: GenerateTestsRequest): Promise<AsyncJobResponse> {
-    try {
-      // Log the full request payload
-      console.log('[Test Generation] Request Payload:', JSON.stringify(request, null, 2));
+    console.log('[Test Generation] Request Payload:', JSON.stringify(request, null, 2));
 
-      const response = await axios.post<AsyncJobResponse>(
-        `${this.baseUrl}/workflows/generate-tests`,
-        request,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+    const response = await this.client.post<AsyncJobResponse>(
+      '/workflows/generate-tests',
+      request
+    );
 
-      // Log the initial response object
-      console.log('[Test Generation] Initial Response:', JSON.stringify(response.data, null, 2));
+    console.log('[Test Generation] Initial Response:', JSON.stringify(response.data, null, 2));
 
-      return response.data;
-    } catch (error) {
-      const formattedError = this.handleAxiosError(error);
-      console.error('[Test Generation] Error Object:', formattedError);
-      throw formattedError;
-    }
+    return response.data;
   }
 
   /**
@@ -104,26 +113,15 @@ export class BackendApiClient {
    * @returns TaskStatusResponse with current status and result (if completed)
    */
   async pollTaskStatus(taskId: string): Promise<TaskStatusResponse> {
-    try {
-      const response = await axios.get<TaskStatusResponse>(
-        `${this.baseUrl}/tasks/${taskId}`,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+    const response = await this.client.get<TaskStatusResponse>(
+      `/tasks/${taskId}`
+    );
 
-      return response.data;
-    } catch (error) {
-      const formattedError = this.handleAxiosError(error, taskId);
-      console.error('[Backend API] Poll task status error:', formattedError);
-      throw formattedError;
-    }
+    return response.data;
   }
 
   /**
-   * Poll task status until completion with exponential backoff
+   * Poll task status until completion with exponential backoff + jitter
    *
    * @param taskId - Task ID to poll
    * @param onProgress - Optional callback for progress updates
@@ -137,72 +135,50 @@ export class BackendApiClient {
     onProgress?: (status: TaskStatusResponse) => void,
     options?: PollingOptions
   ): Promise<GenerateTestsResult> {
-    const startTime = Date.now();
-    const intervalMs = options?.intervalMs || 1500;
-    const timeoutMs = options?.timeoutMs || 60000;
-    let pollInterval = intervalMs;
-
-    // Log polling start
-    console.log(`[Test Generation] Starting polling for task ${taskId}`);
-
-    while (true) {
-      // Check timeout
-      const elapsed = Date.now() - startTime;
-      if (elapsed > timeoutMs) {
-        throw new TaskTimeoutError(taskId, `Task ${taskId} timed out after ${elapsed}ms`);
-      }
-
-      // Poll status
-      const status = await this.pollTaskStatus(taskId);
-
-      // Log status transition
-      console.log(`[Test Generation] Task ${taskId} status: ${status.status}`);
-
-      // Call progress callback if provided
-      if (onProgress) {
-        onProgress(status);
-      }
-
-      // Check if task is complete
-      if (status.status === 'completed') {
-        if (!status.result) {
-          throw new TaskPollingError(
-            'Task completed but no result returned',
-            taskId
-          );
-        }
-        return status.result;
-      }
-
-      // Check if task failed
-      if (status.status === 'failed') {
-        const errorMessage = status.error?.message || 'Unknown error';
-        throw new TaskPollingError(
-          `Task failed: ${errorMessage}`,
-          taskId
-        );
-      }
-
-      // Wait before next poll with exponential backoff
-      await this.delay(pollInterval);
-      pollInterval = Math.min(pollInterval * 1.5, 5000);
+    // Update poller options if provided
+    if (options) {
+      this.taskPoller.setOptions({
+        initialIntervalMs: options.intervalMs,
+        timeoutMs: options.timeoutMs
+      });
     }
-  }
 
-  /**
-   * Delay helper for polling
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    try {
+      // Use AsyncTaskPoller for standardized polling with jitter
+      const result = await this.taskPoller.poll(
+        taskId,
+        (id) => this.pollTaskStatus(id),
+        (status) => {
+          // Adapter: Convert GenericTaskStatusResponse to TaskStatusResponse for callback
+          if (onProgress) {
+            onProgress(status as TaskStatusResponse);
+          }
+        }
+      );
+
+      return result;
+    } catch (error: any) {
+      // Convert AsyncTaskPoller errors to legacy error types for backward compatibility
+      if (error.name === 'TaskTimeoutError') {
+        throw new TaskTimeoutError(taskId, error.message);
+      }
+      if (error.name === 'TaskFailedError') {
+        throw new TaskPollingError(error.message, taskId);
+      }
+      throw error;
+    }
   }
 
   /**
    * Set custom base URL for the backend API
    *
    * @param url - Custom backend URL
+   * @deprecated Use updateBackendUrl() from BaseBackendClient
    */
   setBaseUrl(url: string): void {
     this.baseUrl = url;
+    this.client.defaults.baseURL = url;
+    console.log(`[LLT Test Generation] Backend URL updated to: ${url}`);
   }
 
   /**
@@ -212,44 +188,5 @@ export class BackendApiClient {
    */
   getBaseUrl(): string {
     return this.baseUrl;
-  }
-
-  private handleAxiosError(error: unknown, taskId?: string): Error {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        const messageBody = this.formatResponseBody(error);
-        if (error.response.status === 404 && taskId) {
-          return new Error(`Task ${taskId} not found`);
-        }
-
-        return new Error(
-          `Backend API error: ${error.response.status} ${error.response.statusText}. ${messageBody}`
-        );
-      }
-
-      if (error.request) {
-        return new Error('Backend API request failed: No response received');
-      }
-    }
-
-    const message = error instanceof Error ? error.message : String(error);
-    return new Error(`Backend API request failed: ${message}`);
-  }
-
-  private formatResponseBody(error: AxiosError): string {
-    const data = error.response?.data;
-    if (!data) {
-      return '';
-    }
-
-    if (typeof data === 'string') {
-      return data;
-    }
-
-    try {
-      return JSON.stringify(data);
-    } catch {
-      return '';
-    }
   }
 }

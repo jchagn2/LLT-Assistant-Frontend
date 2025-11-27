@@ -5,7 +5,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { QualityBackendClient, FileInput, AnalyzeQualityRequest, BackendError } from '../api';
+import { QualityBackendClient, FileInput, AnalyzeQualityRequest, AsyncJobResponse, TaskStatusResponse, BackendError } from '../api';
 import { QualityTreeProvider } from '../activityBar';
 import { QualityConfigManager, EXTENSION_NAME } from '../utils';
 
@@ -91,11 +91,39 @@ export class AnalyzeQualityCommand {
 					console.log(`[LLT Quality] Request built with mode: ${request.mode}`);
 					console.log(`[LLT Quality] Config:`, JSON.stringify(request.config, null, 2));
 
-					// Step 4: Call backend API
-					progress.report({ message: 'Analyzing test quality...' });
-					console.log('[LLT Quality] Step 4: Calling backend API...');
+					// Step 4: Call backend API (async pattern)
+					progress.report({ message: 'Submitting analysis request...' });
+					console.log('[LLT Quality] Step 4: Calling backend API (async)...');
 					const startTime = Date.now();
-					const result = await this.backendClient.analyzeQuality(request);
+
+					// Submit async analysis request
+					const asyncResponse = await this.backendClient.analyzeQualityAsync(request);
+					console.log(`[LLT Quality] Async request submitted in ${Date.now() - startTime}ms`);
+					console.log(`[LLT Quality] Task ID: ${asyncResponse.task_id}`);
+					console.log(`[LLT Quality] Estimated time: ${asyncResponse.estimated_time_seconds}s`);
+
+					// Check if cancelled after submission
+					if (token.isCancellationRequested) {
+						console.log('[LLT Quality] Analysis cancelled by user after submission');
+						return;
+					}
+
+					// Poll for results with progress updates
+					progress.report({ message: 'Analyzing test quality (waiting for results)...' });
+					console.log('[LLT Quality] Polling for results...');
+
+					const result = await this.backendClient.pollTaskUntilComplete(
+						asyncResponse.task_id,
+						(status) => {
+							// Update progress message based on status
+							const statusMessage = status.status === 'processing'
+								? 'Analyzing test quality (processing)...'
+								: 'Analyzing test quality (pending)...';
+							progress.report({ message: statusMessage });
+							console.log(`[LLT Quality] Task status: ${status.status}`);
+						}
+					);
+
 					const duration = Date.now() - startTime;
 					console.log(`[LLT Quality] API call completed in ${duration}ms`);
 
@@ -184,7 +212,15 @@ export class AnalyzeQualityCommand {
 			})
 		);
 
-		return filesWithContent;
+		// Filter out empty files (backend requires at least 1 character)
+		const nonEmptyFiles = filesWithContent.filter(file => file.content.trim().length > 0);
+
+		const emptyFileCount = filesWithContent.length - nonEmptyFiles.length;
+		if (emptyFileCount > 0) {
+			console.log(`[LLT Quality] Filtered out ${emptyFileCount} empty file(s)`);
+		}
+
+		return nonEmptyFiles;
 	}
 
 	/**

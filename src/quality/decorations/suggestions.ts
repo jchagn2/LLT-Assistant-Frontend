@@ -20,11 +20,11 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 	public updateIssues(issues: QualityIssue[]): void {
 		this.issuesByFile.clear();
 		for (const issue of issues) {
-			const fileIssues = this.issuesByFile.get(issue.file);
+			const fileIssues = this.issuesByFile.get(issue.file_path);
 			if (fileIssues) {
 				fileIssues.push(issue);
 			} else {
-				this.issuesByFile.set(issue.file, [issue]);
+				this.issuesByFile.set(issue.file_path, [issue]);
 			}
 		}
 	}
@@ -90,6 +90,11 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 	): vscode.CodeAction | undefined {
 		const suggestion = issue.suggestion;
 
+		// Check if suggestion exists
+		if (!suggestion || !suggestion.action) {
+			return undefined;
+		}
+
 		// Create the code action based on suggestion type
 		switch (suggestion.action) {
 			case 'remove':
@@ -116,7 +121,7 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 		}
 
 		const action = new vscode.CodeAction(
-			`🔧 LLT: Remove ${this.formatIssueType(issue.type)}`,
+			`🔧 LLT: Remove ${this.formatIssueType(issue.code)}`,
 			vscode.CodeActionKind.QuickFix
 		);
 
@@ -130,7 +135,7 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 		action.diagnostics = [this.createDiagnostic(document, issue)];
 
 		// Mark as preferred (will be suggested first)
-		action.isPreferred = issue.detected_by === 'rule_engine';
+		action.isPreferred = issue.detected_by === 'rule';
 
 		return action;
 	}
@@ -143,12 +148,12 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 		issue: QualityIssue
 	): vscode.CodeAction | undefined {
 		const line = issue.line - 1;
-		if (line >= document.lineCount || !issue.suggestion.new_code) {
+		if (line >= document.lineCount || !issue.suggestion || !issue.suggestion.new_code) {
 			return undefined;
 		}
 
 		const action = new vscode.CodeAction(
-			`🔧 LLT: Fix ${this.formatIssueType(issue.type)}`,
+			`🔧 LLT: Fix ${this.formatIssueType(issue.code)}`,
 			vscode.CodeActionKind.QuickFix
 		);
 
@@ -167,7 +172,7 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 		action.edit.replace(document.uri, lineRange, newCodeWithIndent);
 
 		action.diagnostics = [this.createDiagnostic(document, issue)];
-		action.isPreferred = issue.detected_by === 'rule_engine';
+		action.isPreferred = issue.detected_by === 'rule';
 
 		return action;
 	}
@@ -180,12 +185,12 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 		issue: QualityIssue
 	): vscode.CodeAction | undefined {
 		const line = issue.line - 1;
-		if (line >= document.lineCount || !issue.suggestion.new_code) {
+		if (line >= document.lineCount || !issue.suggestion || !issue.suggestion.new_code) {
 			return undefined;
 		}
 
 		const action = new vscode.CodeAction(
-			`🔧 LLT: Add ${this.formatIssueType(issue.type)}`,
+			`🔧 LLT: Add ${this.formatIssueType(issue.code)}`,
 			vscode.CodeActionKind.QuickFix
 		);
 
@@ -241,7 +246,7 @@ export class QualitySuggestionProvider implements vscode.CodeActionProvider {
 		);
 
 		diagnostic.source = 'LLT Quality';
-		diagnostic.code = issue.type;
+		diagnostic.code = issue.code;
 
 		return diagnostic;
 	}
